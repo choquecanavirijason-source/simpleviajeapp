@@ -78,6 +78,14 @@ class MapaController {
 
   Future<void> moveTo(double lat, double lng, {double zoom = 15}) =>
       _svc.moveTo(lat, lng, zoom: zoom);
+
+  /// Actualiza el label km/min en el mapa con valores externos (de metricasEntre).
+  Future<void> actualizarDistanciaLabel(double km, int minutos) async {
+    final svc = _svc;
+    if (svc is MapboxService) {
+      await svc.actualizarDistanciaLabel(km, minutos);
+    }
+  }
 }
 
 class MapaWidget extends StatefulWidget {

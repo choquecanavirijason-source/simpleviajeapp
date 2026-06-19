@@ -71,8 +71,8 @@ class TarifasAeropuerto {
 class TarifasServicio {
   final num comision;
   final num distanciaBase;
-  final num horaPicoExtra;
-  final num nocturno;
+  final num horaPicoExtra; // monto fijo ARS que se suma en hora pico
+  final num nocturno;      // monto fijo ARS que se suma de noche
   final num porKm;
   final num porMin;
   final num tarifaBase;
@@ -88,16 +88,16 @@ class TarifasServicio {
   });
 
   factory TarifasServicio.fromMap(Map<String, dynamic> map) {
-    num _n(dynamic v) => v is num ? v : 0;
+    num toNum(dynamic v) => v is num ? v : 0;
 
     return TarifasServicio(
-      comision: _n(map['comision']),
-      distanciaBase: _n(map['distanciaBase']),
-      horaPicoExtra: _n(map['horaPicoExtra']),
-      nocturno: _n(map['nocturno']),
-      porKm: _n(map['porKm']),
-      porMin: _n(map['porMin']),
-      tarifaBase: _n(map['tarifaBase']),
+      comision: toNum(map['comision']),
+      distanciaBase: toNum(map['distanciaBase']),
+      horaPicoExtra: toNum(map['horaPicoExtra']),
+      nocturno: toNum(map['nocturno']),
+      porKm: toNum(map['porKm']),
+      porMin: toNum(map['porMin']),
+      tarifaBase: toNum(map['tarifaBase']),
     );
   }
 }

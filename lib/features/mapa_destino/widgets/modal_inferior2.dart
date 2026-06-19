@@ -32,6 +32,8 @@ class ModalInferior2Block extends StatelessWidget {
     this.puntoBPais,
     this.onDestinoTap,
     this.precioEstimado,
+    this.distanciaKm,
+    this.minutos,
 
     // 👇 NUEVO: programación recibida desde MapaDestino
     this.programacion,
@@ -45,6 +47,8 @@ class ModalInferior2Block extends StatelessWidget {
   final num tarifa;
   final ValueChanged<num> onTarifaChanged;
   final String servicio;
+  final double? distanciaKm;
+  final int? minutos;
   final VoidCallback? onTaxiTap;
   final VoidCallback? onMotoTap;
 
@@ -80,15 +84,36 @@ class ModalInferior2Block extends StatelessWidget {
               children: [
                 const SizedBox(height: 8),
 
+                // 🔹 Chip km / minutos
+                if (distanciaKm != null || minutos != null) ...[
+                  Row(
+                    children: [
+                      if (distanciaKm != null)
+                        _InfoChip(
+                          icono: Icons.straighten,
+                          texto: '${distanciaKm!.toStringAsFixed(1)} km',
+                        ),
+                      if (distanciaKm != null && minutos != null)
+                        const SizedBox(width: 8),
+                      if (minutos != null)
+                        _InfoChip(
+                          icono: Icons.access_time,
+                          texto: '${minutos!} min',
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
                 // 🔹 Caja de tarifa
                 TarifaControlCard(
                   servicio: servicio,
                   precioRecomendado: (precioEstimado ?? 0),
                   valor: tarifa,
                   moneda: 'ARS',
-                  step: 1,
+                  step: 50,
                   min: 0,
-                  max: 999,
+                  max: 999999,
                   accentColor: Colors.green,
                   onChanged: onTarifaChanged,
                 ),
@@ -133,6 +158,39 @@ class ModalInferior2Block extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({required this.icono, required this.texto});
+  final IconData icono;
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 14, color: Colors.green.shade700),
+          const SizedBox(width: 4),
+          Text(
+            texto,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.green.shade700,
+            ),
+          ),
+        ],
       ),
     );
   }

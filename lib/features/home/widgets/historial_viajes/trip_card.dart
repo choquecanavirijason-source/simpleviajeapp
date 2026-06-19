@@ -999,21 +999,23 @@ class _TripCardState extends State<TripCard>
         // Distancia / Total o Precio Ofrecido
         Row(
           children: [
-            InfoPill(
-              icon: Icons.straighten_rounded,
-              // ✅ Distancia + ETA (solo pedido)
-              label: distanciaLabel,
+            Flexible(
+              child: InfoPill(
+                icon: Icons.straighten_rounded,
+                label: distanciaLabel,
+              ),
             ),
             const SizedBox(width: 8),
-            InfoPill(
-              icon: Icons.payments_rounded,
-              label:
-                  widget.trip.estado == TripStatus.pedido &&
-                      widget.trip.precioOfrecido != null
-                  ? 'Ofrecido: ARS ${_fmtDoubleFull(widget.trip.precioOfrecido!)}'
-                  : 'Total: ARS ${_fmtDoubleFull(widget.trip.precio)}',
+            Flexible(
+              child: InfoPill(
+                icon: Icons.payments_rounded,
+                label:
+                    widget.trip.estado == TripStatus.pedido &&
+                        widget.trip.precioOfrecido != null
+                    ? 'Ofrecido: ARS ${_fmtDoubleFull(widget.trip.precioOfrecido!)}'
+                    : 'Total: ARS ${_fmtDoubleFull(widget.trip.precio)}',
+              ),
             ),
-            const Spacer(),
           ],
         ),
 

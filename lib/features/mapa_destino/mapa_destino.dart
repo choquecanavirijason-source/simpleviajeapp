@@ -548,6 +548,12 @@ class _MapaDestinoState extends State<MapaDestino> {
           _ultimoKm = info.distanciaKm;
           _ultimosMin = info.minutos;
 
+          // Sincronizar label del mapa con los km/min calculados
+          await _mapCtrl!.actualizarDistanciaLabel(
+            info.distanciaKm,
+            info.minutos,
+          );
+
           // 5) recalculo si ya hay combo
           if (_comboSel != null && _ultimoKm != null && _ultimosMin != null) {
             _recalcularConCombo(
@@ -663,6 +669,9 @@ class _MapaDestinoState extends State<MapaDestino> {
         final min = info.minutos;
         _ultimoKm = km;
         _ultimosMin = min;
+
+        // Sincronizar label del mapa con los km/min calculados
+        await _mapCtrl!.actualizarDistanciaLabel(km, min);
 
         if (_comboSel != null) {
           _recalcularConCombo(
@@ -1124,6 +1133,9 @@ class _MapaDestinoState extends State<MapaDestino> {
               puntoBCiudad: puntoBCiudad,
               puntoBPais: puntoBPais,
 
+              distanciaKm: _ultimoKm,
+              minutos: _ultimosMin,
+
               // ✅ al seleccionar servicio: recalcula precio (si ya hay km/min)
               onComboChange:
                   (TarifaHorasPicoAeropuerto combo, String servicio) {
@@ -1131,6 +1143,8 @@ class _MapaDestinoState extends State<MapaDestino> {
                       _comboSel = combo;
                       _servicioSel = servicio;
                       _servicioActual = servicio;
+                      _tarifaTocada = false; // recalcular precio al cambiar servicio
+                      _tarifa = null;
                     });
 
                     if (_ultimoKm != null && _ultimosMin != null) {
@@ -1154,6 +1168,8 @@ class _MapaDestinoState extends State<MapaDestino> {
               maxChildSize: _sheet2Max,
               tarifa: (_tarifa ?? _precioEstimado ?? 0),
               precioEstimado: _precioEstimado,
+              distanciaKm: _ultimoKm,
+              minutos: _ultimosMin,
               onTarifaChanged: (v) => setState(() {
                 _tarifaTocada = true;
                 _tarifa = v;
@@ -1436,3 +1452,4 @@ class _CuponWidget extends StatelessWidget {
     );
   }
 }
+

@@ -27,9 +27,11 @@ class MapboxService implements MapService {
   TaxistasMarkersManager? _taxistasMgr;
   MapboxDirectionsClient? _dirClient;
 
-  // ⭐ NUEVO: Control de rutas para evitar parpadeo
+  // Control de rutas para evitar parpadeo
   bool _routeLayerExists = false;
+  bool _labelLayerExists = false;
   String? _currentRouteGeometry;
+  Map<String, dynamic>? _lastRouteGeometry; // para actualizar label externo
   final RouteCacheManager _routeCache = RouteCacheManager();
 
   MapboxService({double? centerLat, double? centerLng}) {
@@ -309,7 +311,7 @@ class MapboxService implements MapService {
             sourceId: sourceId,
             lineJoin: LineJoin.ROUND,
             lineCap: LineCap.ROUND,
-            lineColor: Colors.blue.value,
+            lineColor: Colors.blue.toARGB32(),
             lineWidth: 6.5,
           ),
         );
@@ -318,6 +320,12 @@ class MapboxService implements MapService {
       }
 
       _currentRouteGeometry = geojsonStr;
+      _lastRouteGeometry = geometry;
+
+      // Label km/min en el punto medio de la ruta
+      final distanciaKm = cachedRoute.distance / 1000.0;
+      final minutos = (cachedRoute.duration / 60.0).round();
+      await _actualizarLabelRuta(geometry, distanciaKm, minutos);
 
       // Animación suave de cámara
       await _map!.easeTo(framing, MapAnimationOptions(duration: 800));
@@ -326,6 +334,79 @@ class MapboxService implements MapService {
       // Fallback: recrear todo
       await _recreateRoute(sourceId, layerId, geojson, framing);
     }
+  }
+
+  /// Calcula el punto medio de una geometría LineString de GeoJSON.
+  List<double> _midpointOfGeometry(Map<String, dynamic> geometry) {
+    final rawCoords = geometry['coordinates'] as List?;
+    if (rawCoords == null || rawCoords.isEmpty) return [0.0, 0.0];
+    final coords = rawCoords
+        .map((c) => (c as List).map((v) => (v as num).toDouble()).toList())
+        .toList();
+    return coords[coords.length ~/ 2];
+  }
+
+  /// Agrega o actualiza el label de km/min sobre la ruta.
+  Future<void> _actualizarLabelRuta(
+    Map<String, dynamic> geometry,
+    double distanciaKm,
+    int minutos,
+  ) async {
+    if (_map == null) return;
+    const labelSourceId = 'route_label_source';
+    const labelLayerId = 'route_label_layer';
+
+    final mid = _midpointOfGeometry(geometry);
+    final texto = '${distanciaKm.toStringAsFixed(1)} km · $minutos min';
+
+    final labelGeoJson = jsonEncode({
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'properties': {'label': texto},
+          'geometry': {
+            'type': 'Point',
+            'coordinates': mid,
+          },
+        },
+      ],
+    });
+
+    try {
+      if (_labelLayerExists) {
+        await _map!.style.setStyleSourceProperty(
+          labelSourceId,
+          'data',
+          labelGeoJson,
+        );
+      } else {
+        await _map!.style.addSource(
+          GeoJsonSource(id: labelSourceId, data: labelGeoJson),
+        );
+        await _map!.style.addLayer(
+          SymbolLayer(
+            id: labelLayerId,
+            sourceId: labelSourceId,
+            textFieldExpression: ['get', 'label'],
+            textSize: 13.0,
+            textColor: Colors.white.toARGB32(),
+            textHaloColor: const Color(0xFF1565C0).toARGB32(),
+            textHaloWidth: 10.0,
+            textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+          ),
+        );
+        _labelLayerExists = true;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error al actualizar label de ruta: $e');
+    }
+  }
+
+  /// Actualiza el texto del label con valores externos (ej: los de metricasEntre).
+  Future<void> actualizarDistanciaLabel(double km, int minutos) async {
+    if (_lastRouteGeometry == null) return;
+    await _actualizarLabelRuta(_lastRouteGeometry!, km, minutos);
   }
 
   /// Helper para recrear la ruta desde cero (fallback)
@@ -349,7 +430,7 @@ class MapboxService implements MapService {
         sourceId: sourceId,
         lineJoin: LineJoin.ROUND,
         lineCap: LineCap.ROUND,
-        lineColor: Colors.blue.value,
+        lineColor: Colors.blue.toARGB32(),
         lineWidth: 6.5,
       ),
     );

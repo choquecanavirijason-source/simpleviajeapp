@@ -4,8 +4,9 @@ import '../data/models/servicio_empresa_model.dart' as m;
 
 class Tarifa {
   final double distanciaBase;
-  final double horaPicoExtra;
-  final double nocturno;
+  final double horaPicoExtra; // monto fijo ARS que se suma en hora pico
+  final double nocturno;      // monto fijo ARS que se suma de noche
+  final double comision;      // % de comisión de la plataforma
   final double porKm;
   final double porMin;
   final double tarifaBase;
@@ -14,6 +15,7 @@ class Tarifa {
     required this.distanciaBase,
     required this.horaPicoExtra,
     required this.nocturno,
+    this.comision = 0,
     required this.porKm,
     required this.porMin,
     required this.tarifaBase,
@@ -30,6 +32,7 @@ class Tarifa {
     distanciaBase: _d(t?['distanciaBase']),
     horaPicoExtra: _d(t?['horaPicoExtra']),
     nocturno: _d(t?['nocturno']),
+    comision: _d(t?['comision']),
     porKm: _d(t?['porKm']),
     porMin: _d(t?['porMin']),
     tarifaBase: _d(t?['tarifaBase']),
@@ -449,6 +452,7 @@ TarifaHorasPicoAeropuerto comboDesdeServicioEmpresa(m.ServicioEmpresa s) {
     distanciaBase: (t?.distanciaBase ?? 0).toDouble(),
     horaPicoExtra: (t?.horaPicoExtra ?? 0).toDouble(),
     nocturno: (t?.nocturno ?? 0).toDouble(),
+    comision: (t?.comision ?? 0).toDouble(),
     porKm: (t?.porKm ?? 0).toDouble(),
     porMin: (t?.porMin ?? 0).toDouble(),
     tarifaBase: (t?.tarifaBase ?? 0).toDouble(),

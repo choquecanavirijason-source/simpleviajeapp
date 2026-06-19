@@ -4,6 +4,7 @@
 // ✅ PERO ya NO fuerza abrir el Sheet2 (resumen). Deja que el usuario elija el servicio.
 // 🔧 Nuevo flag: 'autoDestino': true  (para que MapaDestino trace ruta automáticamente sin abrir Sheet2)
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:buses2/core/services/google/buscador_google.dart';
@@ -13,6 +14,19 @@ import 'package:buses2/shared/widgets/buscadores/buscadores1.dart';
 import 'package:buses2/shared/widgets/modal_inferior/modal_inferior3.dart';
 import 'package:buses2/shared/widgets/cajas/sugerencias_busqueda/sugerencias_busqueda.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Distancia lineal en km entre dos puntos (Haversine).
+double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
+  const R = 6371.0;
+  final dLat = (lat2 - lat1) * math.pi / 180;
+  final dLon = (lon2 - lon1) * math.pi / 180;
+  final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(lat1 * math.pi / 180) *
+          math.cos(lat2 * math.pi / 180) *
+          math.sin(dLon / 2) *
+          math.sin(dLon / 2);
+  return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+}
 
 class ModalInferiorAyB {
   static Future<void> mostrar({
@@ -892,9 +906,22 @@ class ModalInferiorAyB {
                           } else if (t.contains('tourist')) {
                             icon = Icons.photo_camera_rounded;
                           }
+
+                          // Distancia lineal desde el origen del pasajero
+                          final pLat = (p['lat'] as num?)?.toDouble();
+                          final pLng = (p['lng'] as num?)?.toDouble();
+                          String subtitulo = (p['subtitulo'] as String?) ?? '';
+                          if (_lat != null && _lng != null && pLat != null && pLng != null) {
+                            final km = _haversineKm(_lat!, _lng!, pLat, pLng);
+                            final kmStr = km < 1
+                                ? '${(km * 1000).round()} m'
+                                : '${km.toStringAsFixed(1)} km';
+                            subtitulo = subtitulo.isEmpty ? kmStr : '$subtitulo · $kmStr';
+                          }
+
                           return SugerenciaEntry(
                             titulo: (p['titulo'] as String?) ?? '',
-                            subtitulo: (p['subtitulo'] as String?) ?? '',
+                            subtitulo: subtitulo,
                             leadingIcon: icon,
                             trailingIcon: Icons.directions,
                           );

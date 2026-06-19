@@ -27,7 +27,7 @@ class CalculoTarifaResult {
   final int minutos;
 
   final double base;
-  final int kmExtraCobrar;
+  final double kmExtraDecimal;
   final double cargoDistancia;
   final double cargoTiempo;
   final double
@@ -43,7 +43,7 @@ class CalculoTarifaResult {
     required this.distanciaKm,
     required this.minutos,
     required this.base,
-    required this.kmExtraCobrar,
+    required this.kmExtraDecimal,
     required this.cargoDistancia,
     required this.cargoTiempo,
     required this.recargoHoraPico,
@@ -74,7 +74,6 @@ CalculoTarifaResult calcularPrecioTotal({
   final String dest = (destinoNombre ?? '').toLowerCase();
   final esAeropuerto = dest.contains('aeropuerto') || dest.contains('airport');
   double total;
-  int kmExtraCobrar = 0;
   double cargoDistancia = 0.0;
   double cargoTiempo = 0.0;
   double recargoHP = 0.0;
@@ -95,11 +94,11 @@ CalculoTarifaResult calcularPrecioTotal({
     return CalculoTarifaResult(
       esAeropuerto: true,
       aplicoHoraPico: false,
-      aplicoNocturno: aplicaNocturnoFinal && t.nocturno > 0, // ⬅️
+      aplicoNocturno: aplicaNocturnoFinal && t.nocturno > 0,
       distanciaKm: distanciaKm,
       minutos: minutos,
       base: 0.0,
-      kmExtraCobrar: 0,
+      kmExtraDecimal: 0.0,
       cargoDistancia: 0.0,
       cargoTiempo: 0.0,
       recargoHoraPico: 0.0,
@@ -109,46 +108,41 @@ CalculoTarifaResult calcularPrecioTotal({
   }
 
   // === LÓGICA NORMAL ===
-  // Distancia: base + extra con regla 0.51
-  if (distanciaKm > t.distanciaBase) {
-    final kmExtra = distanciaKm - t.distanciaBase;
-    final kmExtraEntero = kmExtra.floor();
-    final tieneDecimalAlto = (kmExtra - kmExtraEntero) >= 0.51;
-    kmExtraCobrar = kmExtraEntero + (tieneDecimalAlto ? 1 : 0);
-    cargoDistancia = kmExtraCobrar * t.porKm;
-  }
+  // Distancia: km extra en decimal exacto (Excel: max(0, km - distanciaBase) * porKm)
+  final kmExtraDecimal = (distanciaKm - t.distanciaBase).clamp(0.0, double.infinity);
+  cargoDistancia = kmExtraDecimal * t.porKm;
 
   // Tiempo
   cargoTiempo = minutos * t.porMin;
   total = t.tarifaBase + cargoDistancia + cargoTiempo;
 
-  // Hora pico (porcentaje) con franjas DINÁMICAS (de la empresa/servicio)
-  final esPico = esHoraPicoAhora(hp, dt); // ⬅️ reusar dt
+  // Hora pico: suma monto fijo ARS configurado
+  final esPico = esHoraPicoAhora(hp, dt);
   if (esPico && t.horaPicoExtra > 0) {
-    final double pct = (t.horaPicoExtra >= 1.0)
-        ? (t.horaPicoExtra / 100.0)
-        : t.horaPicoExtra;
-    final antes = total;
-    total *= (1 + pct);
-    recargoHP = total - antes;
+    recargoHP = t.horaPicoExtra;
+    total += recargoHP;
   }
 
-  // 👉 aplicar redondeo de 0.06 a 0.10 y de 0.05 a 0.00
+  // Nocturno: aplica a todos los viajes si está configurado (Argentina y aeropuerto)
+  if (aplicaNocturnoFinal && t.nocturno > 0) {
+    recargoNoc = t.nocturno;
+    total += recargoNoc;
+  }
+
   total = _redondearDecimaConUmbral(total);
 
-  // Igual que tu ejemplo: en la rama NORMAL NO sumas nocturno.
   return CalculoTarifaResult(
     esAeropuerto: false,
     aplicoHoraPico: esPico && t.horaPicoExtra > 0,
-    aplicoNocturno: false,
+    aplicoNocturno: aplicaNocturnoFinal && t.nocturno > 0,
     distanciaKm: distanciaKm,
     minutos: minutos,
     base: t.tarifaBase,
-    kmExtraCobrar: kmExtraCobrar,
+    kmExtraDecimal: kmExtraDecimal,
     cargoDistancia: cargoDistancia,
     cargoTiempo: cargoTiempo,
     recargoHoraPico: recargoHP,
-    recargoNocturno: 0.0,
+    recargoNocturno: recargoNoc,
     total: total,
   );
 }
@@ -174,7 +168,7 @@ final res = calcularTarifaBasica(
 );
 
 // res.total → el precio final
-// res.kmExtraCobrar/cargoDistancia/cargoTiempo para mostrar desglose
+// res.kmExtraDecimal/cargoDistancia/cargoTiempo para mostrar desglose
 */
 
 /// Devuelve true si `ahora` cae dentro del horario nocturno.

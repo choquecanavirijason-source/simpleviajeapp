@@ -51,6 +51,8 @@ class ModalInferior1 extends StatefulWidget {
 
     // Callback opcional
     this.onComboChange,
+    this.distanciaKm,
+    this.minutos,
   });
 
   final DraggableScrollableController controller;
@@ -77,11 +79,15 @@ class ModalInferior1 extends StatefulWidget {
   final void Function(TarifaHorasPicoAeropuerto combo, String servicio)?
   onComboChange;
 
-  // ✅ NUEVO: Card de tarifa
+  // Card de tarifa
   final bool mostrarTarifaCard;
   final double? precioEstimado;
   final num tarifa;
   final ValueChanged<num>? onTarifaChanged;
+
+  // Distancia del trayecto
+  final double? distanciaKm;
+  final int? minutos;
 
   @override
   State<ModalInferior1> createState() => _ModalInferior1State();
@@ -558,11 +564,11 @@ class _ModalInferior1State extends State<ModalInferior1>
                         child: Text(
                           'No se detectó el DEPARTAMENTO del pasajero (Punto A). No se pueden cargar servicios/tarifas.',
                         ),
-                      );
+                      );  
                     }
 
                     return ServiciosDeEmpresa(
-                      departamento: deptoNorm, // ✅ YA NORMALIZADO
+                      departamento: deptoNorm, 
                       pais: _paisA,
                       builder: (context, snap) {
                         if (snap.connectionState == ConnectionState.waiting) {
@@ -725,6 +731,27 @@ class _ModalInferior1State extends State<ModalInferior1>
                                     ),
                                     const SizedBox(height: 8),
 
+                                    // Chip distancia / tiempo del trayecto
+                                    if (widget.distanciaKm != null || widget.minutos != null) ...[
+                                      Row(
+                                        children: [
+                                          if (widget.distanciaKm != null)
+                                            _TripChip(
+                                              icono: Icons.straighten,
+                                              texto: '${widget.distanciaKm!.toStringAsFixed(1)} km',
+                                            ),
+                                          if (widget.distanciaKm != null && widget.minutos != null)
+                                            const SizedBox(width: 8),
+                                          if (widget.minutos != null)
+                                            _TripChip(
+                                              icono: Icons.access_time,
+                                              texto: '${widget.minutos!} min',
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                    ],
+
                                     // ✅ TARIFA: directo del servicio ya cargado
                                     // (mismo objeto que pintó la tarjeta), sin
                                     // segunda lectura ni re-match por nombre.
@@ -825,14 +852,22 @@ class _ModalInferior1State extends State<ModalInferior1>
                                                   valor:
                                                       'ARS ${tarifa.porMin.toStringAsFixed(2)}',
                                                 ),
-                                                if (tarifa.horaPicoExtra >
-                                                    0) ...[
+                                                if (tarifa.horaPicoExtra > 0) ...[
                                                   const SizedBox(height: 4),
                                                   _PrecioItem(
                                                     icono: Icons.trending_up,
                                                     label: 'Hora pico (extra)',
                                                     valor:
-                                                        'ARS ${tarifa.horaPicoExtra.toStringAsFixed(2)}',
+                                                        'ARS ${tarifa.horaPicoExtra.toStringAsFixed(0)}',
+                                                  ),
+                                                ],
+                                                if (tarifa.nocturno > 0) ...[
+                                                  const SizedBox(height: 4),
+                                                  _PrecioItem(
+                                                    icono: Icons.nightlight_round,
+                                                    label: 'Recargo nocturno',
+                                                    valor:
+                                                        'ARS ${tarifa.nocturno.toStringAsFixed(0)}',
                                                   ),
                                                 ],
                                               ],
@@ -852,9 +887,9 @@ class _ModalInferior1State extends State<ModalInferior1>
                                                 .toDouble(),
                                         valor: widget.tarifa,
                                         moneda: 'ARS',
-                                        step: 1,
+                                        step: 50,
                                         min: 0,
-                                        max: 999,
+                                        max: 999999,
                                         accentColor: Colors.green,
                                         onChanged: widget.onTarifaChanged,
                                       ),
@@ -1096,6 +1131,39 @@ class _PrecioItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TripChip extends StatelessWidget {
+  const _TripChip({required this.icono, required this.texto});
+  final IconData icono;
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 14, color: Colors.green.shade700),
+          const SizedBox(width: 4),
+          Text(
+            texto,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.green.shade700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
