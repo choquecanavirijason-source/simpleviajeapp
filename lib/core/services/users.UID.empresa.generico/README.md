@@ -1,0 +1,6 @@
+ - desde generico_save_nube.dart se puede crear secciones genericas
+ - users<UID><empresa><generico>
+ - users<UID><empresa><tarifas>
+ - users<UID><empresa><descuentos>
+ - Solo dentro de <empresa> de momento se puede crear secciones genericas.
+ - Dentro del page: static const String sectionName = 'tarifas';

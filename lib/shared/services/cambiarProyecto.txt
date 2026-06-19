@@ -1,0 +1,9 @@
+Cambiar proyecto firebase
+
+1. Ejecuta esto en comandos 🡆 flutterfire configure
+. luego elige el nuevo proyecto de firebase
+
+2. reemplaza este archivo android/app/google-services.json
+2. si usas ios tambien esto ios/Runner/GoogleService-Info.plist
+3. el applicationId debe coincidir con el proyecto firebase
+. android/app/build.gradle

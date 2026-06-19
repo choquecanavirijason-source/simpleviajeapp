@@ -1,0 +1,102 @@
+# ───────────────────────── 1. METADATOS DEL PAQUETE ─────────────────────────
+name: buses2
+description: "A new Flutter project."
+publish_to: 'none' # Evita subirlo por error a pub.dev
+
+# ───────────────────────── 2. VERSIÓN DE LA APP ─────────────────────────────
+version: 1.0.0+1          # formato: major.minor.patch+build
+
+# ───────────────────────── 3. ENTORNO DE DART ───────────────────────────────
+environment:
+  sdk: ^3.9.2             # versión mínima de Dart/Flutter que soportas
+
+# ───────────────────────── 4. DEPENDENCIAS DE RUNTIME ───────────────────────
+dependencies:
+  # 4.1 Núcleo de Flutter
+  flutter:
+    sdk: flutter
+
+  # 4.2 Localización de widgets (Material, Cupertino…)
+  flutter_localizations:
+    sdk: flutter
+
+  # 4.3 ─── TUS PAQUETES (puedes añadir o quitar) ───
+  shared_preferences: ^2.5.3        # almacenamiento local simple
+  path_provider: ^2.1.5             # rutas de carpetas del dispositivo
+  path: ^1.9.0
+  country_code_picker: ^3.3.0       # selector de prefijo telefónico
+  phone_numbers_parser: ^8.1.0      # validación internacional de teléfonos
+
+  # 4.4 Firebase (autenticación y base de datos)
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.0.2
+  cloud_firestore: ^6.0.1
+  firebase_app_check: ^0.4.1+2      # protección contra abuso de backend
+  google_sign_in: ^7.1.1            # login con Google
+  firebase_storage: ^13.0.1
+  firebase_database: ^12.0.3
+  firebase_messaging: ^16.0.4
+
+  # 4.5 UI y mapas
+  google_fonts: ^6.2.1              # tipografías de Google
+  mapbox_maps_flutter: ^2.17.0      # mapas Mapbox
+  geolocator: ^14.0.2               # GPS / coordenadas
+  image_picker: ^1.1.2              # seleccionar imágenes del dispositivo
+  google_mlkit_face_detection: ^0.13.2
+  cupertino_icons: ^1.0.8           # iconos iOS style
+  flutter_map: ^8.2.2
+
+  # 4.6 Utilidades varias
+  intl: ^0.20.2                     # formateo de fechas/números
+  flutter_dotenv: ^5.2.1            # variables de entorno (.env)
+  flutter_modular: ^6.4.1           # inyección de dependencias / rutas
+  http: ^1.5.0
+  connectivity_plus: ^6.0.3         # verifica la conexion a internet
+  table_calendar: ^3.0.9            # calendario
+
+  # para imagenes / archivos
+  file_picker: ^8.0.0
+
+  # para descargar QR / permisos / descargas
+  gal: ^2.3.0
+  permission_handler: ^11.3.1
+  dio: ^5.7.0
+
+  # streams / state / notificaciones / enlaces
+  rxdart: ^0.27.7
+  provider: ^6.1.5+1
+  flutter_local_notifications: ^19.5.0
+  url_launcher: ^6.3.0
+
+  # tooling
+  flutter_launcher_icons: ^0.14.4
+
+# ───────────────────────── 5. DEPENDENCIAS DE DESARROLLO ────────────────────
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0             # reglas de estilo y estática
+
+# ───────────────────────── 6. CONFIGURACIÓN DE FLUTTER ──────────────────────
+flutter:
+  uses-material-design: true        # incluye Material Icons
+
+  assets:                           # recursos que viajan en el APK/IPA
+    - assets/images/carrasco_tropical_splash.png
+    - assets/images/logomujerealvolante.jpg
+    - assets/images/icono_oficial_simple.png
+    - assets/icon/icono_oficial_simple.png
+    - assets/icon/google_logo.png
+    - assets/icon/facebook.png
+    - assets/icon/logo.jpeg
+    - assets/icon/icono_oficial.png
+    - assets/icon/icono_oficial_simple.png
+    - assets/icon/car_taxi.png
+    - assets/icon/whatsapp.png
+    - .env
+
+# ───────────────────────── 7. FLUTTER LAUNCHER ICONS ────────────────────────
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/logo.jpeg"

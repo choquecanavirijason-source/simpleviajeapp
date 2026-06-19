@@ -1,0 +1,35 @@
+{
+  "chats": {
+    "uidA_uidB": {
+      "participants": { "uidA": true, "uidB": true },
+      "createdAt": 0,
+      "lastMessage": "Hola",
+      "lastMessageAt": 0
+    }
+  },
+  "messages": {
+    "uidA_uidB": {
+      "msg1": {
+        "senderId": "uidA",
+        "text": "Hola",
+        "createdAt": 0
+      }
+    }
+  },
+  "userChats": {
+    "uidA": {
+      "uidA_uidB": {
+        "otherUid": "uidB",
+        "lastMessage": "Hola",
+        "lastMessageAt": 0
+      }
+    },
+    "uidB": {
+      "uidA_uidB": {
+        "otherUid": "uidA",
+        "lastMessage": "Hola",
+        "lastMessageAt": 0
+      }
+    }
+  }
+}
