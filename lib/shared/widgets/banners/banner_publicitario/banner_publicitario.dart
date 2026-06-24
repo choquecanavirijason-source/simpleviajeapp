@@ -159,8 +159,8 @@ class _BannerPublicidadState extends State<BannerPublicidad> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 110,
+    return AspectRatio(
+      aspectRatio: 6 / 4,
       child: widget.streamBanners != null
           ? StreamBuilder<List<BannerModel>>(
               stream: widget.streamBanners,

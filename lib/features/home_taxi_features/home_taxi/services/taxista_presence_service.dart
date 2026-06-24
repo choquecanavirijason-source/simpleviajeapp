@@ -75,8 +75,7 @@ class TaxistaPresenceService {
       final pos = await geo.Geolocator.getCurrentPosition(
         desiredAccuracy: geo.LocationAccuracy.high,
       );
-      _lastUploaded = pos;
-      await _publishOnce(pos);
+      await _publishOnce(pos); // _lastUploaded se actualiza dentro si el write es exitoso
       debugPrint('🚖 presence: primera publicación @ ${pos.latitude},${pos.longitude}');
     } catch (e) {
       debugPrint('🟥 presence initial publish (¿permisos GPS?): $e');
@@ -89,11 +88,13 @@ class TaxistaPresenceService {
         final pos = await geo.Geolocator.getCurrentPosition(
           desiredAccuracy: geo.LocationAccuracy.high,
         );
+        // Si el último publish falló (_lastUploaded == null) siempre reintentamos.
         if (_shouldPublish(pos)) {
-          _lastUploaded = pos;
           await _publishOnce(pos);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('🟥 presence ticker error (¿GPS sin permiso?): $e');
+      }
     });
   }
 
@@ -130,6 +131,9 @@ class TaxistaPresenceService {
         if (_servicio != null) 'servicio': _servicio,
         if (_nombre != null && _nombre!.isNotEmpty) 'nombre': _nombre,
       });
+      // Solo marcamos la posición como publicada si el write fue exitoso.
+      // Así, si las reglas RTDB bloqueaban la escritura, el próximo tick reintenta.
+      _lastUploaded = pos;
     } catch (e) {
       debugPrint('🟥 presence publish FALLÓ (¿reglas RTDB?): $e');
     }

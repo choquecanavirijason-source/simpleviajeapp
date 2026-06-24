@@ -137,12 +137,26 @@ class MapboxService implements MapService {
         padding: MbxEdgeInsets(top: -210, bottom: 0, left: 0, right: 0),
       ),
 
+      onStyleLoadedListener: (_) {
+        // Style (re)loaded — native annotation managers were destroyed.
+        // Reset so next sincronizarTaxistas() creates fresh managers.
+        _taxistasMgr?.dispose();
+        _taxistasMgr = null;
+        _puntoFijoMgr = null;
+      },
+
       onMapCreated: (mapboxMap) async {
+        // If the map widget was recreated, clear stale managers.
+        if (_map != null) {
+          _taxistasMgr?.dispose();
+          _taxistasMgr = null;
+          _userCircleManager = null;
+          _puntoFijoMgr = null;
+        }
         _map = mapboxMap;
         _configureMapSettings(mapboxMap);
 
         if (lat != null && lng != null) {
-          // 👇 Siempre círculo simple (sin radar)
           _userCircleManager ??= UserCircleManager(_map!);
           await _userCircleManager!.addUserCircle(lat, lng);
         }

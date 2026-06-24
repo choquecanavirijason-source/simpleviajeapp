@@ -681,6 +681,15 @@ class _ModalInferior1State extends State<ModalInferior1>
                                           final isSelected =
                                               (seleccionado == label);
 
+                                          final iconColor = isSelected
+                                              ? Colors.white
+                                              : _vehicleIconColor(label);
+                                          final fallbackIcon = Icon(
+                                            _vehicleIconData(label),
+                                            size: 34,
+                                            color: iconColor,
+                                          );
+
                                           final Widget imageWidget =
                                               (meta?.imageUrl != null &&
                                                   meta!.imageUrl!.isNotEmpty)
@@ -705,18 +714,11 @@ class _ModalInferior1State extends State<ModalInferior1>
                                                                 ),
                                                           ),
                                                     errorBuilder:
-                                                        (
-                                                          _,
-                                                          __,
-                                                          ___,
-                                                        ) => const Icon(
-                                                          Icons.broken_image,
-                                                        ),
+                                                        (_, __, ___) =>
+                                                            fallbackIcon,
                                                   ),
                                                 )
-                                              : const Icon(
-                                                  Icons.image_not_supported,
-                                                );
+                                              : fallbackIcon;
 
                                           return _ServiceCard(
                                             label: meta?.label ?? label,
@@ -918,6 +920,28 @@ class _ModalInferior1State extends State<ModalInferior1>
 }
 
 /// Card compacta: imagen arriba + nombre abajo
+// ── Helpers de íconos de vehículo ────────────────────────────────────────────
+
+IconData _vehicleIconData(String label) {
+  final l = label.toLowerCase();
+  if (l.contains('moto')) return Icons.two_wheeler_rounded;
+  if (l.contains('confort') || l.contains('premium') || l.contains('vip')) {
+    return Icons.drive_eta_rounded;
+  }
+  return Icons.directions_car_filled_rounded;
+}
+
+Color _vehicleIconColor(String label) {
+  final l = label.toLowerCase();
+  if (l.contains('moto')) return const Color(0xFFF59E0B);
+  if (l.contains('confort') || l.contains('premium') || l.contains('vip')) {
+    return const Color(0xFF8B5CF6);
+  }
+  return const Color(0xFF16A34A);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _ServiceCard extends StatelessWidget {
   const _ServiceCard({
     required this.label,

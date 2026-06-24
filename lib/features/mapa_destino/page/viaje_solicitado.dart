@@ -10,9 +10,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:buses2/core/services/mapa/mapbox/mapa_widget.dart';
 import 'package:buses2/core/services/mapa/mapbox/taxistas_markers_manager.dart'
     show TaxistaMarkerData;
+import 'package:buses2/features/home/services/taxistas_cercanos_service.dart';
 import 'package:buses2/features/mapa_destino/data/estado_orden.dart'; // actualizarEstadoOrden(...)
 import 'package:buses2/shared/widgets/botones/boton.dart';
 import 'package:buses2/features/mapa_destino/widgets/modalpaso1_titulo_pill.dart';
+import 'package:buses2/features/mapa_destino/widgets/radar_buscando.dart';
 import 'package:buses2/shared/widgets/modal_inferior/modal_inferior2.dart';
 // import 'package:buses2/shared/widgets/ofertas/oferta_card.dart'; // Ya incluido en oferta_builder
 import 'package:buses2/shared/widgets/ofertas/oferta_builder.dart';
@@ -61,7 +63,7 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
   double _sheetMainMin = 0.18;
   static const double _sheetMainMax = 0.96;
 
-  final DraggableScrollableController _sheetCancelCtrl =
+  DraggableScrollableController _sheetCancelCtrl =
       DraggableScrollableController();
   bool _showCancel = false;
   static const double _sheetCancelTarget = 0.44;
@@ -75,8 +77,12 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
   // Para cada taxista que ofertó, una suscripción a su presencia RTDB.
   final Map<String, StreamSubscription<DatabaseEvent>> _presenceSubs = {};
 
-  // Estado actual de markers (uid → datos).
+  // Estado actual de markers de ofertas (uid → datos).
   final Map<String, TaxistaMarkerData> _markersByUid = {};
+
+  // Stream y markers de conductores cercanos disponibles (RTDB general).
+  StreamSubscription<List<TaxistaOnline>>? _cercanosRtdbSub;
+  final Map<String, TaxistaMarkerData> _cercanosMarkers = {};
 
   @override
   void initState() {
@@ -206,16 +212,18 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
     );
 
     if (!mounted) return;
+    // Recreate controller to avoid "already attached" assertion on repeated show.
+    _sheetCancelCtrl.dispose();
+    _sheetCancelCtrl = DraggableScrollableController();
     setState(() => _showCancel = true);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _sheetCancelCtrl
-        ..jumpTo(0.00)
-        ..animateTo(
-          _sheetCancelTarget,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-        );
+      if (!mounted) return;
+      _sheetCancelCtrl.animateTo(
+        _sheetCancelTarget,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
@@ -343,11 +351,13 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
   @override
   void dispose() {
     _ofertasMarkersSub?.cancel();
+    _cercanosRtdbSub?.cancel();
     for (final s in _presenceSubs.values) {
       s.cancel();
     }
     _presenceSubs.clear();
     _markersByUid.clear();
+    _cercanosMarkers.clear();
     _sheetMainCtrl.dispose();
     _sheetCancelCtrl.dispose();
     super.dispose();
@@ -431,7 +441,49 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
   Future<void> _sincronizarMapa() async {
     final ctrl = _mapCtrl;
     if (ctrl == null) return;
-    await ctrl.sincronizarTaxistas(_markersByUid.values.toList());
+    // Combina conductores cercanos generales + los que hicieron oferta.
+    // Los de oferta sobreescriben si tienen el mismo uid (son el mismo conductor).
+    final merged = Map<String, TaxistaMarkerData>.from(_cercanosMarkers)
+      ..addAll(_markersByUid);
+    await ctrl.sincronizarTaxistas(merged.values.toList());
+    if (mounted) setState(() {});
+  }
+
+  /// Suscribe al stream de conductores disponibles en RTDB dentro de 5 km.
+  Future<void> _suscribirCercanos() async {
+    if (_cercanosRtdbSub != null) return;
+    if (_mapCtrl == null) return;
+
+    double? lat = puntoALat;
+    double? lng = puntoALng;
+
+    if (lat == null || lng == null) {
+      try {
+        final c = await _mapCtrl!.getCameraCenter();
+        lat = c.coordinates.lat.toDouble();
+        lng = c.coordinates.lng.toDouble();
+      } catch (e) {
+        debugPrint('🟥 viaje_solicitado cercanos: $e');
+        return;
+      }
+    }
+
+    _cercanosRtdbSub = TaxistasCercanosService.instance
+        .streamCercanos(centerLat: lat, centerLng: lng, radiusKm: 5.0)
+        .listen((lista) async {
+          _cercanosMarkers.clear();
+          for (final t in lista) {
+            _cercanosMarkers[t.uid] = TaxistaMarkerData(
+              uid: t.uid,
+              lat: t.lat,
+              lng: t.lng,
+              servicio: t.servicio,
+            );
+          }
+          await _sincronizarMapa();
+        }, onError: (e) {
+          debugPrint('🟥 stream cercanos viaje_solicitado: $e');
+        });
   }
 
   @override
@@ -446,9 +498,9 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
               centerLat: puntoALat ?? -17.3895,
               centerLng: puntoALng ?? -66.1568,
               onMapReady: (c) {
-                _mapCtrl = c;
-                // Empezar a pintar markers de los taxistas que ofertaron.
+                setState(() => _mapCtrl = c);
                 _iniciarMarkersOfertas();
+                _suscribirCercanos();
               },
             ),
 
@@ -482,6 +534,25 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
               ),
             ),
 
+            // Radar animado: visible mientras se busca conductor
+            if (_mapCtrl != null)
+              Align(
+                alignment: const Alignment(0, -0.35),
+                child: RadarBuscando(
+                  conductoresCercanos: {
+                    ..._cercanosMarkers,
+                    ..._markersByUid,
+                  }.length,
+                  serviciosCercanos: {
+                    ..._cercanosMarkers,
+                    ..._markersByUid,
+                  }.values
+                      .map((m) => m.servicio ?? '')
+                      .where((s) => s.isNotEmpty)
+                      .toList(),
+                ),
+              ),
+
             // Pill superior
             Align(
               alignment: Alignment.topCenter,
@@ -493,6 +564,7 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
 
             // Sheet principal
             Align(
+              key: const ValueKey('vs-sheet-main'),
               alignment: Alignment.bottomCenter,
               child: SafeArea(
                 top: false,
@@ -650,6 +722,7 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
             // Sheet cancelar
             if (_showCancel)
               Align(
+                key: const ValueKey('vs-sheet-cancel'),
                 alignment: Alignment.bottomCenter,
                 child: SafeArea(
                   top: false,

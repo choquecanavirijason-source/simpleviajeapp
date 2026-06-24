@@ -60,7 +60,11 @@ class OrderService {
 
   /// Comienza a escuchar las órdenes en Firestore.
   void startListening() {
-    if (_firestoreSubscription != null) return;
+    if (_firestoreSubscription != null) {
+      debugPrint('📡 OrderService: ya estaba escuchando (no-op)');
+      return;
+    }
+    debugPrint('📡 OrderService: startListening() INICIADO');
 
     // Reseteamos
     _firstLoadNormals = true;
@@ -74,24 +78,29 @@ class OrderService {
         .orderBy('createdAt', descending: true)
         .limit(20);
 
-    _firestoreSubscription = query.snapshots().listen((snapshot) {
-      _lastFirestoreDocs = snapshot.docs;
+    _firestoreSubscription = query.snapshots().listen(
+      (snapshot) {
+        _lastFirestoreDocs = snapshot.docs;
 
-      // --- CORRECCIÓN CRÍTICA ---
-      // Si es la primera carga, marcamos TODOS los documentos como "ya notificados"
-      // INMEDIATAMENTE, sin importar si hay GPS o no.
-      if (_firstLoadNormals) {
-        for (var doc in snapshot.docs) {
-          _notifiedOrderPaths.add(doc.reference.path);
+        if (_firstLoadNormals) {
+          for (var doc in snapshot.docs) {
+            _notifiedOrderPaths.add(doc.reference.path);
+          }
+          debugPrint(
+            'OrderService: Carga inicial Normales (${snapshot.docs.length} docs).',
+          );
+          _firstLoadNormals = false;
         }
-        debugPrint(
-          'OrderService: Carga inicial Normales silenciada (${snapshot.docs.length} docs).',
-        );
-        _firstLoadNormals = false;
-      }
 
-      _recomputeAndEmit();
-    });
+        _recomputeAndEmit();
+      },
+      onError: (e) {
+        debugPrint(
+          '🟥 OrderService Firestore ERROR (normales): $e\n'
+          '⚠️  Verificar: índice collectionGroup "ordenes" y reglas de Firestore.',
+        );
+      },
+    );
 
     // 2. Query Programadas
     final scheduledQuery = _db
@@ -100,25 +109,29 @@ class OrderService {
         .orderBy('createdAt', descending: true)
         .limit(20);
 
-    _firestoreScheduledSubscription = scheduledQuery.snapshots().listen((
-      snapshot,
-    ) {
-      _lastScheduledDocs = snapshot.docs;
+    _firestoreScheduledSubscription = scheduledQuery.snapshots().listen(
+      (snapshot) {
+        _lastScheduledDocs = snapshot.docs;
 
-      // --- CORRECCIÓN CRÍTICA ---
-      // Igual aquí: Marcamos como vistas antes de cualquier cálculo.
-      if (_firstLoadScheduled) {
-        for (var doc in snapshot.docs) {
-          _notifiedOrderPaths.add(doc.reference.path);
+        if (_firstLoadScheduled) {
+          for (var doc in snapshot.docs) {
+            _notifiedOrderPaths.add(doc.reference.path);
+          }
+          debugPrint(
+            'OrderService: Carga inicial Programadas (${snapshot.docs.length} docs).',
+          );
+          _firstLoadScheduled = false;
         }
-        debugPrint(
-          'OrderService: Carga inicial Programadas silenciada (${snapshot.docs.length} docs).',
-        );
-        _firstLoadScheduled = false;
-      }
 
-      _recomputeAndEmit();
-    });
+        _recomputeAndEmit();
+      },
+      onError: (e) {
+        debugPrint(
+          '🟥 OrderService Firestore ERROR (programados): $e\n'
+          '⚠️  Verificar: índice collectionGroup "ordenesProgramados" y reglas de Firestore.',
+        );
+      },
+    );
   }
 
   /// Detiene la suscripción y limpia todo.
@@ -170,6 +183,11 @@ class OrderService {
 
     // Si no está libre o no hay GPS, limpiar y salir
     if (!estaLibre || coords == null) {
+      if (kDebugMode) {
+        debugPrint(
+          '📡 OrderService: bloqueado – libre=$estaLibre, coords=${coords != null}',
+        );
+      }
       _ordersController.add(const []);
       return;
     }
@@ -177,21 +195,38 @@ class OrderService {
     final driverLat = coords['lat']!;
     final driverLng = coords['lng']!;
 
+    // Normaliza: minúsculas, sin espacios/underscores extra
+    // Permite que "simple_uber" y "simple uber" coincidan
+    final srvNormDriver =
+        servicioDriver != null ? _normalize(servicioDriver) : null;
+
     // --- FUNCIÓN DE FILTRADO (Reutilizable) ---
-    bool _filtroGeneral(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    bool filtroGeneral(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
       final data = doc.data();
 
-      // 1. Filtro de Servicio
-      if (servicioDriver != null) {
+      // 1. Filtro de Servicio (solo si el conductor tiene servicio no vacío)
+      if (srvNormDriver != null && srvNormDriver.isNotEmpty) {
         final ordenServicio = data['servicio']?.toString();
-        if (_normalize(ordenServicio) != _normalize(servicioDriver)) {
+        final srvNormOrden = _normalize(ordenServicio);
+        if (srvNormOrden != srvNormDriver) {
+          if (kDebugMode) {
+            debugPrint(
+              '⏭️ OrderService: orden ${doc.id} filtrada por servicio '
+              '"$ordenServicio" (norm:"$srvNormOrden") != "$servicioDriver" (norm:"$srvNormDriver")',
+            );
+          }
           return false;
         }
       }
 
       // 2. Filtro de Distancia
       final origen = data['origen'] as Map<String, dynamic>?;
-      if (origen == null) return false;
+      if (origen == null) {
+        if (kDebugMode) {
+          debugPrint('⏭️ OrderService: orden ${doc.id} sin campo "origen"');
+        }
+        return false;
+      }
 
       final dynamic rawLat = origen['lat'];
       final dynamic rawLng = origen['lng'];
@@ -203,7 +238,14 @@ class OrderService {
           ? rawLng.toDouble()
           : double.tryParse(rawLng.toString());
 
-      if (oLat == null || oLng == null) return false;
+      if (oLat == null || oLng == null) {
+        if (kDebugMode) {
+          debugPrint(
+            '⏭️ OrderService: orden ${doc.id} coordenadas origen inválidas',
+          );
+        }
+        return false;
+      }
 
       final distance = GeoUtils.calculateDistanceHaversine(
         lat1: driverLat,
@@ -212,13 +254,28 @@ class OrderService {
         lon2: oLng,
       );
 
-      // Radio de 2 km
-      return distance <= 2.0;
+      // Radio de 5 km (era 2 km — ampliado para reducir falsos negativos)
+      if (distance > 5.0) {
+        if (kDebugMode) {
+          debugPrint(
+            '⏭️ OrderService: orden ${doc.id} muy lejos (${distance.toStringAsFixed(1)} km)',
+          );
+        }
+        return false;
+      }
+      return true;
     }
 
     // Aplicar filtros
-    final filteredNormals = docsNormales.where(_filtroGeneral).toList();
-    final filteredScheduled = docsProgramados.where(_filtroGeneral).toList();
+    final filteredNormals = docsNormales.where(filtroGeneral).toList();
+    final filteredScheduled = docsProgramados.where(filtroGeneral).toList();
+
+    if (kDebugMode) {
+      debugPrint(
+        '📡 OrderService: ${docsNormales.length} normales → ${filteredNormals.length} pasaron filtros '
+        '(servicio:"$servicioDriver", driver=${driverLat.toStringAsFixed(4)},${driverLng.toStringAsFixed(4)})',
+      );
+    }
 
     // --- LÓGICA DE NOTIFICACIÓN ---
     final List<QueryDocumentSnapshot> ordersToNotify = [];
@@ -271,8 +328,10 @@ class OrderService {
     _ordersController.add(filteredNormals);
   }
 
-  // Helper para comparar strings
-  String _normalize(String? text) => text?.toLowerCase().trim() ?? '';
+  // Normaliza para comparar: minúsculas, sin espacios ni underscores
+  // "simple_uber" y "simple uber" quedan iguales: "simpleuber"
+  String _normalize(String? text) =>
+      (text ?? '').toLowerCase().trim().replaceAll(RegExp(r'[\s_]+'), '');
 
   // Limpieza total
   Future<void> dispose() async {

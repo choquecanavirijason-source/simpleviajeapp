@@ -94,10 +94,13 @@ class _HomeTaxistaState extends State<HomeTaxista> {
       }
 
       debugPrint('✅ [HomeTaxista] Usuario confirmado como taxista');
+      // Iniciar escucha de órdenes SIEMPRE que sea taxista, antes de validar docs.
+      // No debe bloquearse por documentos incompletos.
+      OrderService.instance.startListening();
       // Asegurar que el listener de ofertas aceptadas del taxista esté activo
       await DriverOfferAcceptedListenerService.instance.startListening();
       await DriverOfferCounterOfferListenerService.instance.startListening();
-      // Si es taxista, verificar documentos
+      // Si es taxista, verificar documentos (solo muestra advertencia, no bloquea)
       await _verificarDocumentosCompletos();
     } catch (e) {
       debugPrint('❌ Error al verificar modo de usuario: $e');
@@ -203,9 +206,6 @@ class _HomeTaxistaState extends State<HomeTaxista> {
         configuracion,
         documentosVehiculo,
       );
-
-      // Iniciar escucha global de órdenes cercanas para el modo taxista
-      OrderService.instance.startListening();
     } catch (e) {
       debugPrint('❌ Error al verificar documentos: $e');
       // Si hay error, permitir acceso pero logear el error

@@ -364,16 +364,16 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white, size: 18),
@@ -387,7 +387,7 @@ class _StatCard extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.65),
+                    color: Colors.white.withValues(alpha: 0.65),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.3,
@@ -397,11 +397,15 @@ class _StatCard extends StatelessWidget {
                 DefaultTextStyle.merge(
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                     height: 1.1,
                   ),
-                  child: child,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: child,
+                  ),
                 ),
               ],
             ),
@@ -479,19 +483,19 @@ void _showPrettySnack(
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.18),
+            color: Colors.black.withValues(alpha: 0.18),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: accent.withOpacity(.35), width: 1),
+        border: Border.all(color: accent.withValues(alpha: 0.35), width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             decoration: BoxDecoration(
-              color: accent.withOpacity(.18),
+              color: accent.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
             padding: const EdgeInsets.all(8),
@@ -518,7 +522,7 @@ void _showPrettySnack(
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(.90),
+                      color: Colors.white.withValues(alpha: 0.90),
                       fontSize: 13.2,
                       height: 1.2,
                       fontWeight: FontWeight.w500,
@@ -730,6 +734,28 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
   String? _normalizeService(String? service) {
     if (service == null) return null;
     return service.trim().toLowerCase();
+  }
+
+  /// Convierte identificadores internos a etiqueta legible para el UI.
+  /// Ej: "simple_uber" → "Simple Uber", "Moto_taxi" → "Moto Taxi"
+  static IconData _iconVehiculo(String? s) {
+    if (s == null) return Icons.directions_car_filled_rounded;
+    final l = s.toLowerCase();
+    if (l.contains('moto')) return Icons.two_wheeler_rounded;
+    if (l.contains('confort') || l.contains('premium') || l.contains('vip')) {
+      return Icons.drive_eta_rounded;
+    }
+    return Icons.directions_car_filled_rounded;
+  }
+
+  static String _formatServicio(String s) {
+    return s
+        .trim()
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
   }
 
   Future<void> _cambiarEstado(Estado3? nuevoEstado) async {
@@ -1048,9 +1074,9 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.12)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1063,7 +1089,7 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: estadoDot.withOpacity(0.55),
+                            color: estadoDot.withValues(alpha: 0.55),
                             blurRadius: 6,
                           ),
                         ],
@@ -1094,8 +1120,8 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
               colorLibre: Colors.green,
               colorSuspendido: Colors.orange,
               textColorSelected: Colors.white,
-              unselectedBgColor: Colors.white.withOpacity(0.08),
-              borderColor: Colors.white.withOpacity(0.18),
+              unselectedBgColor: Colors.white.withValues(alpha: 0.08),
+              borderColor: Colors.white.withValues(alpha: 0.18),
             ),
           ),
           const SizedBox(height: 14),
@@ -1128,15 +1154,13 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            icon: Icons.local_taxi_rounded,
+            icon: _iconVehiculo(_servicioSeleccionado),
             label: 'SERVICIO',
             child: Text(
               (_servicioSeleccionado == null ||
                       _servicioSeleccionado!.trim().isEmpty)
                   ? '—'
-                  : _servicioSeleccionado!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+                  : _formatServicio(_servicioSeleccionado!),
             ),
           ),
         ),
@@ -1240,7 +1264,7 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -1472,10 +1496,10 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
 
             if (nearby.isEmpty) {
               return const _EmptyState(
-                icon: Icons.inbox_rounded,
-                title: 'No hay solicitudes cercanas',
-                subtitle: 'No hay pedidos a menos de 2 km.',
-                accent: Colors.blueGrey,
+                icon: Icons.local_taxi_rounded,
+                title: 'Sin pedidos cercanos',
+                subtitle: 'No hay pedidos a menos de 5 km.\nPuede que estés en una zona sin demanda.',
+                accent: Color(0xFF16A34A),
               );
             }
 
@@ -1629,10 +1653,10 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
 
         if (docs.isEmpty) {
           return const _EmptyState(
-            icon: Icons.inbox_rounded,
-            title: 'No hay programados',
-            subtitle: 'No hay viajes programados por ahora.',
-            accent: Colors.blueGrey,
+            icon: Icons.event_available_rounded,
+            title: 'Sin viajes programados',
+            subtitle: 'No hay solicitudes programadas\npara tu servicio por ahora.',
+            accent: Color(0xFF0EA5E9),
           );
         }
 

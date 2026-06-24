@@ -38,6 +38,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart'
 import './widgets/modal_inferior1.dart';
 import './widgets/modal_inferior2.dart';
 import './widgets/modalpaso1_titulo_pill.dart';
+import './widgets/radar_buscando.dart';
 
 // Guardado normal (bool)
 import './service/guardar_orden.dart';
@@ -139,6 +140,8 @@ class _MapaDestinoState extends State<MapaDestino> {
 
   // ===== Stream de taxistas online cercanos =====
   StreamSubscription<List<TaxistaOnline>>? _taxistasSub;
+  int _taxistasCount = 0;
+  List<String> _serviciosCercanos = [];
 
   // ===== Cupón =====
   final TextEditingController _cuponCtrl = TextEditingController();
@@ -420,6 +423,15 @@ class _MapaDestinoState extends State<MapaDestino> {
         )
         .listen((lista) async {
           debugPrint('🟢 taxistas: recibidos ${lista.length} en radio 5km');
+          if (mounted) {
+            setState(() {
+              _taxistasCount = lista.length;
+              _serviciosCercanos = lista
+                  .map((t) => t.servicio ?? '')
+                  .where((s) => s.isNotEmpty)
+                  .toList();
+            });
+          }
           if (_mapCtrl == null) return;
           final markers = lista
               .map((t) => TaxistaMarkerData(
@@ -1003,6 +1015,16 @@ class _MapaDestinoState extends State<MapaDestino> {
                 });
               },
             ),
+
+            // Radar de conductores (solo visible antes de fijar destino)
+            if (_mapCtrl != null && !_bFijado)
+              Align(
+                alignment: const Alignment(0, -0.12),
+                child: RadarBuscando(
+                  conductoresCercanos: _taxistasCount,
+                  serviciosCercanos: _serviciosCercanos,
+                ),
+              ),
 
             // Etiqueta superior
             Align(
