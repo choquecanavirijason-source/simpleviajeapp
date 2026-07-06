@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// Modelo simple para un destino reciente (normal o programado).
 class DestinoReciente {
@@ -37,6 +38,17 @@ class RecientesRepo {
 
   /// Lee 3 de `ordenes` + 2 de `ordenesProgramados`, mezcla por fecha desc y devuelve 5.
   static Future<List<DestinoReciente>> obtenerRecientes({
+    required String uid,
+  }) async {
+    try {
+      return await _obtenerRecientesInternal(uid: uid);
+    } catch (e) {
+      debugPrint('⚠️ RecientesRepo.obtenerRecientes error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<DestinoReciente>> _obtenerRecientesInternal({
     required String uid,
   }) async {
     final fs = FirebaseFirestore.instance;

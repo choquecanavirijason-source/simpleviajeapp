@@ -192,9 +192,7 @@ class _TripCardState extends State<TripCard>
     }
   }
 
-  LinearGradient? _getCardGradient(TripStatus s) {
-    if (!s.isActivo) return null;
-
+  LinearGradient _getCardGradient(TripStatus s) {
     switch (s) {
       case TripStatus.pedido:
         return LinearGradient(
@@ -220,6 +218,50 @@ class _TripCardState extends State<TripCard>
           end: Alignment.bottomRight,
           colors: [Colors.white, naranjaEstado.withOpacity(0.05)],
         );
+      case TripStatus.completado:
+        return const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFECFDF5), Color(0xFFF8FFFE)],
+        );
+      case TripStatus.cancelado:
+        return const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF1F2), Color(0xFFFFFAFA)],
+        );
+      default:
+        return const LinearGradient(
+          colors: [Colors.white, Colors.white],
+        );
+    }
+  }
+
+  Color _accentColor(TripStatus s) {
+    switch (s) {
+      case TripStatus.completado:
+        return verdeEstado;
+      case TripStatus.cancelado:
+        return rojoEstado;
+      case TripStatus.pedido:
+        return amarilloEstado;
+      case TripStatus.enCamino:
+        return azulEstado;
+      case TripStatus.enLugar:
+        return moradoEstado;
+      case TripStatus.enCurso:
+        return naranjaEstado;
+      default:
+        return grisEstado;
+    }
+  }
+
+  Border? _cardBorder(TripStatus s) {
+    switch (s) {
+      case TripStatus.completado:
+        return Border.all(color: verdeEstado.withOpacity(0.25), width: 1.2);
+      case TripStatus.cancelado:
+        return Border.all(color: rojoEstado.withOpacity(0.2), width: 1.2);
       default:
         return null;
     }
@@ -772,6 +814,8 @@ class _TripCardState extends State<TripCard>
     final btnStyle = TextButton.styleFrom(foregroundColor: verdeStrong);
     final btnStyleCancel = TextButton.styleFrom(foregroundColor: rojoStrong);
 
+    final hasChatId = (widget.trip.chatId ?? '').isNotEmpty;
+
     List<Widget> buttons = [];
 
     if (isPedido || isProgramado) {
@@ -802,6 +846,13 @@ class _TripCardState extends State<TripCard>
       ];
     } else if (isAceptado) {
       buttons = [
+        if (hasChatId)
+          TextButton.icon(
+            onPressed: () => widget.onChatConductor?.call(widget.trip),
+            style: btnStyle,
+            icon: const Icon(Icons.chat_bubble_rounded),
+            label: const Text('Chat'),
+          ),
         TextButton.icon(
           onPressed: () => widget.onCancelar?.call(widget.trip),
           style: btnStyleCancel,
@@ -817,6 +868,13 @@ class _TripCardState extends State<TripCard>
           icon: const Icon(Icons.directions_car_filled_rounded),
           label: const Text('Ver conductor'),
         ),
+        if (hasChatId)
+          TextButton.icon(
+            onPressed: () => widget.onChatConductor?.call(widget.trip),
+            style: btnStyle,
+            icon: const Icon(Icons.chat_bubble_rounded),
+            label: const Text('Chat'),
+          ),
         TextButton.icon(
           onPressed: () => _notifyPassengerEnCamino(context),
           style: btnStyle,
@@ -832,6 +890,13 @@ class _TripCardState extends State<TripCard>
           icon: const Icon(Icons.directions_car_filled_rounded),
           label: const Text('Ver conductor'),
         ),
+        if (hasChatId)
+          TextButton.icon(
+            onPressed: () => widget.onChatConductor?.call(widget.trip),
+            style: btnStyle,
+            icon: const Icon(Icons.chat_bubble_rounded),
+            label: const Text('Chat'),
+          ),
       ];
     } else if (isEnCurso) {
       buttons = [
@@ -842,6 +907,13 @@ class _TripCardState extends State<TripCard>
           icon: const Icon(Icons.map_rounded),
           label: const Text('Ver ruta'),
         ),
+        if (hasChatId)
+          TextButton.icon(
+            onPressed: () => widget.onChatConductor?.call(widget.trip),
+            style: btnStyle,
+            icon: const Icon(Icons.chat_bubble_rounded),
+            label: const Text('Chat'),
+          ),
       ];
     } else if (isCompletado) {
       buttons = [
@@ -1099,63 +1171,129 @@ class _TripCardState extends State<TripCard>
         widget.trip.estado == TripStatus.enCurso ||
         widget.trip.estado == TripStatus.enCamino ||
         isEnLugar;
-    final gradient = isActivo ? _getCardGradient(widget.trip.estado) : null;
+    final gradient = _getCardGradient(widget.trip.estado);
+    final accent = _accentColor(widget.trip.estado);
+    final isCompletado = widget.trip.estado == TripStatus.completado;
+    final isCancelado = widget.trip.estado == TripStatus.cancelado;
 
     final cardContent = Card(
       elevation: 0,
-      color: gradient == null ? Colors.white : null,
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
-        decoration: gradient != null
-            ? BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(20),
-              )
-            : null,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: cardBody,
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Franja izquierda de acento
+              if (isCompletado || isCancelado)
+                Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      bottomLeft: Radius.circular(20),
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    (isCompletado || isCancelado) ? 14 : 16,
+                    14,
+                    16,
+                    14,
+                  ),
+                  child: cardBody,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
 
+    List<BoxShadow> shadows() {
+      if (isEnLugar) {
+        return [
+          BoxShadow(
+            color: verdeMedio.withOpacity(.55),
+            blurRadius: 5,
+            spreadRadius: 2,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: verdeClaro.withOpacity(.35),
+            blurRadius: 5,
+            spreadRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ];
+      }
+      if (isActivo) {
+        return [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+        ];
+      }
+      if (isCompletado) {
+        return [
+          BoxShadow(
+            color: verdeEstado.withOpacity(0.18),
+            blurRadius: 14,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            spreadRadius: 0,
+            offset: const Offset(0, 1),
+          ),
+        ];
+      }
+      if (isCancelado) {
+        return [
+          BoxShadow(
+            color: rojoEstado.withOpacity(0.13),
+            blurRadius: 14,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            spreadRadius: 0,
+            offset: const Offset(0, 1),
+          ),
+        ];
+      }
+      return [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 8,
+          spreadRadius: 0,
+          offset: const Offset(0, 2),
+        ),
+      ];
+    }
+
     final decoratedCard = AnimatedContainer(
       duration: const Duration(milliseconds: 220),
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        boxShadow: isEnLugar
-            ? [
-                BoxShadow(
-                  color: verdeMedio.withOpacity(.55),
-                  blurRadius: 5,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 10),
-                ),
-                BoxShadow(
-                  color: verdeClaro.withOpacity(.35),
-                  blurRadius: 5,
-                  spreadRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : isActivo
-            ? [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 12,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        border: _cardBorder(widget.trip.estado),
+        boxShadow: shadows(),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),

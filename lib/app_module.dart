@@ -12,6 +12,7 @@ import 'package:buses2/features/home/pages/ver_conductor_page.dart';
 import 'package:buses2/features/home/pages/viajes.dart';
 import 'package:buses2/features/home/pages/detalle_viaje.dart';
 import 'package:buses2/features/home/pages/lugares_guardados_page.dart';
+import 'package:buses2/features/home/pages/lugares_tab_page.dart';
 
 import 'package:buses2/features/home_taxi_features/home_taxi/pages/detalle_viaje_taxista.dart';
 import 'package:buses2/features/home_taxi_features/home_taxi/pages/billetera_taxista.dart';
@@ -204,6 +205,7 @@ class AppModule extends Module {
           '/lugares-guardados',
           child: (_) => const LugaresGuardadosPage(),
         ),
+        ChildRoute('/lugares', child: (_) => const LugaresTabPage()),
         ChildRoute('/chats', child: (_) => ChatListPage()),
 
         ChildRoute(
@@ -284,7 +286,7 @@ class AppModule extends Module {
         ),
         ChildRoute(
           '/chats_taxista',
-          child: (_) => ChatListPage(),
+          child: (_) => ChatListPage(mode: 'taxista'),
         ), // Ruta para el BottomNavigationBar
         ChildRoute(
           '/chat/detail',

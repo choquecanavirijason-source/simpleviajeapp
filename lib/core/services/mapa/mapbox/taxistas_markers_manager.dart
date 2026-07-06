@@ -35,6 +35,7 @@ class TaxistasMarkersManager {
   PointAnnotationManager? _manager;
   bool _iconsRegistered = false;
   bool _creatingManager = false;
+  bool _disposed = false;
 
   /// uid → PointAnnotation activa
   final Map<String, PointAnnotation> _byUid = {};
@@ -101,56 +102,66 @@ class TaxistasMarkersManager {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> sincronizar(List<TaxistaMarkerData> taxistas) async {
+    if (_disposed) return;
     await _ensureManager();
-    if (_manager == null) return;
+    if (_manager == null || _disposed) return;
 
     final mgr = _manager!;
     final nuevos = {for (final t in taxistas) t.uid: t};
 
-    // 1) Borrar los que ya no están
+    // 1) Quitar del tracking los que ya no están
+    //    No llamamos mgr.delete() — puede crashear con managerId stale
+    //    si el estilo recargó entre el create y este delete.
     final toRemove =
         _byUid.keys.where((uid) => !nuevos.containsKey(uid)).toList();
     for (final uid in toRemove) {
-      final p = _byUid.remove(uid);
-      if (p != null) {
-        try {
-          await mgr.delete(p);
-        } catch (e) {
-          debugPrint('🟥 delete marker $uid: $e');
-        }
-      }
+      _byUid.remove(uid);
     }
 
-    // 2) Crear o actualizar
+    // 2) Crear o mover (nunca update — lanza Throwable nativo no capturable)
     for (final entry in nuevos.entries) {
+      if (_disposed) return;
       final uid = entry.key;
       final t = entry.value;
-      final existing = _byUid[uid];
+      final existing = _byUid.remove(uid); // quita antes de cualquier await
 
-      if (existing != null) {
-        existing.geometry = Point(coordinates: Position(t.lng, t.lat));
+      // Borrar anotación anterior al mover (delete es más seguro que update
+      // porque no modifica datos nativos del objeto; si falla, continuamos).
+      if (existing != null && !_disposed) {
         try {
-          await mgr.update(existing);
-        } catch (_) {}
-      } else {
-        final iconKey = _claveServicio(t.servicio);
-        debugPrint(
-          '🚖 crear marker uid=$uid servicio=${t.servicio} icon=${_iconId(iconKey)}',
-        );
-        try {
-          final created = await mgr.create(
-            PointAnnotationOptions(
-              geometry: Point(coordinates: Position(t.lng, t.lat)),
-              iconImage: _iconId(iconKey),
-              iconSize: 1.0,
-              iconAnchor: IconAnchor.CENTER,
-            ),
-          );
-          _byUid[uid] = created;
-          debugPrint('🚖 marker creado OK uid=$uid');
-        } catch (e) {
-          debugPrint('🟥 marker create FALLÓ uid=$uid: $e');
+          await mgr.delete(existing);
+        } catch (_) {
+          // Manager stale — abortar sync; el próximo creará manager fresco.
+          if (!_disposed) {
+            _manager = null;
+            _byUid.clear();
+            _iconsRegistered = false;
+          }
+          return;
         }
+      }
+
+      if (_disposed) return;
+
+      final iconKey = _claveServicio(t.servicio);
+      try {
+        final created = await mgr.create(
+          PointAnnotationOptions(
+            geometry: Point(coordinates: Position(t.lng, t.lat)),
+            iconImage: _iconId(iconKey),
+            iconSize: 1.0,
+            iconAnchor: IconAnchor.CENTER,
+          ),
+        );
+        if (!_disposed) _byUid[uid] = created;
+      } catch (e) {
+        debugPrint('🟥 marker create FALLÓ uid=$uid: $e');
+        if (!_disposed) {
+          _manager = null;
+          _byUid.clear();
+          _iconsRegistered = false;
+        }
+        return;
       }
     }
   }
@@ -170,6 +181,7 @@ class TaxistasMarkersManager {
   }
 
   void dispose() {
+    _disposed = true;
     _byUid.clear();
     _manager = null;
     _iconsRegistered = false;
@@ -181,10 +193,13 @@ class TaxistasMarkersManager {
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Devuelve bytes en formato RGBA (lo que espera addStyleImage de Mapbox).
+  ///
+  /// Dibuja un badge circular con el GLIFO del vehículo según el servicio
+  /// (auto/moto/confort) en lugar de un texto ("TAXI", "MOTO", …).
   static Future<Uint8List> _generarIconoRgba(String? servicio) async {
     const double sz = 48.0;
     final color = _colorPorServicio(servicio);
-    final label = _labelPorServicio(servicio);
+    final icon = _glyphPorServicio(servicio);
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -213,21 +228,21 @@ class TaxistasMarkersManager {
         ..strokeWidth = 3.5,
     );
 
-    // Texto del servicio
+    // Glifo del vehículo (fuente de íconos de Material)
     final tp = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
       text: TextSpan(
-        text: label,
-        style: const TextStyle(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.3,
+          fontSize: sz * 0.5,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
           height: 1,
         ),
       ),
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    )..layout(maxWidth: sz);
+    )..layout();
 
     tp.paint(
       canvas,
@@ -270,17 +285,18 @@ class TaxistasMarkersManager {
     }
   }
 
-  static String _labelPorServicio(String? s) {
-    if (s == null) return 'AUTO';
-    final l = s.trim().toLowerCase();
-    if (l.contains('moto')) return 'MOTO';
-    if (l.contains('confort') || l.contains('premium') || l.contains('vip')) {
-      return 'CONF';
+  /// Glifo del vehículo según el servicio (para dibujar en el marcador).
+  static IconData _glyphPorServicio(String? s) {
+    switch (_claveServicio(s)) {
+      case 'moto':
+        return Icons.two_wheeler_rounded;
+      case 'confort':
+        return Icons.local_taxi_rounded;
+      case 'taxi':
+        return Icons.directions_car_rounded;
+      default:
+        return Icons.directions_car_rounded;
     }
-    if (l.contains('taxi')) return 'TAXI';
-    // Servicio desconocido: primeras 4 letras
-    final clean = s.trim().toUpperCase().replaceAll(' ', '');
-    return clean.substring(0, clean.length.clamp(0, 4));
   }
 
   static Color _colorPorServicio(String? s) {

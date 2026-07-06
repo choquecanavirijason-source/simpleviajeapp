@@ -8,9 +8,11 @@ class ScaffoldConBottom extends StatelessWidget {
   final Widget body;
   final Widget btnFijoAbajo;
   final bool scrollBody;
-  final Color? colorFondo; // 👈 color de la barra inferior
-  final Color? backgroundColor; // 👈 fondo plano
-  final Gradient? backgroundGradient; // 👈 nuevo: fondo degradado
+  final Color? colorFondo;
+  final Color? backgroundColor;
+  final Gradient? backgroundGradient;
+  // false = el body no se encoge con el teclado (ideal para pantallas con mapa)
+  final bool resizeToAvoidBottomInset;
 
   const ScaffoldConBottom({
     super.key,
@@ -21,6 +23,7 @@ class ScaffoldConBottom extends StatelessWidget {
     this.colorFondo,
     this.backgroundColor,
     this.backgroundGradient,
+    this.resizeToAvoidBottomInset = true,
   });
 
   @override
@@ -34,7 +37,7 @@ class ScaffoldConBottom extends StatelessWidget {
     );
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       appBar: appBar,
       // Evita fondo blanco del Scaffold cuando usamos gradiente
       backgroundColor: backgroundGradient == null

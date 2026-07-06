@@ -66,7 +66,7 @@ class ModalEditarSaldo {
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      labelText: 'Monto (Bs)',
+                      labelText: 'Monto (ARS)',
                       labelStyle: const TextStyle(color: Colors.black54),
                       prefixIcon: const Icon(Icons.attach_money_rounded),
                       filled: true,

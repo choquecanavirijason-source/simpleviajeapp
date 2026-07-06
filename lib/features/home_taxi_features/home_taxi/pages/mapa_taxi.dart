@@ -469,8 +469,8 @@ class _MapaTaxiState extends State<MapaTaxi>
                                   : null,
                               child: Text(
                                 (mismoPrecioLocal
-                                        ? 'Aceptar por Bs '
-                                        : 'Hacer oferta por Bs ') +
+                                        ? 'Aceptar por ARS '
+                                        : 'Hacer oferta por ARS ') +
                                     c.fmtPrecioPlano(c.precioEditable),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,

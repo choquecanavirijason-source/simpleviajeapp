@@ -43,6 +43,14 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
   double? _destLng;
   String? _destLabel;
 
+  // Tipo de servicio del viaje (auto/moto/…) para elegir el ícono del vehículo
+  String? _servicio;
+
+  // Última posición donde se dibujó el pin del objetivo (para no redibujarlo
+  // en cada tick y evitar parpadeo/duplicados).
+  double? _pinLat;
+  double? _pinLng;
+
   // Firestore doc path y estado
   String? _rutaDoc;
   String _estado = ''; // en_camino | en_lugar | en_curso | completado | ...
@@ -351,6 +359,10 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
       final data = snap.data() ?? const <String, dynamic>{};
       final String nuevoEstado = (data['estado'] ?? '').toString().trim();
 
+      // Servicio (auto/moto/…) para el ícono del vehículo
+      final svc = (data['servicio'] as String?)?.trim();
+      if (svc != null && svc.isNotEmpty) _servicio = svc;
+
       // destino
       double? dLat = _toDouble(
         _firstNonNull([
@@ -427,11 +439,10 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
       }
 
       if (_mapReady && _lastPos != null) {
-        await _map!.borrarPuntoFijo();
         await _drawByEstado(from: _lastPos!, forceImmediate: true);
         if (!mounted) return;
-        await _putCarEmojiAt(_lastPos!);
-        await _addDestinationPinIfNeeded();
+        await _actualizarVehiculo(_lastPos!);
+        await _ensureDestinationPin();
       }
 
       if (nuevoEstado == 'completado' && !_navigated && mounted) {
@@ -495,11 +506,10 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
           _recalcularDistanciaYETA(pos);
 
           if (_mapReady) {
-            await _map!.borrarPuntoFijo();
             await _drawByEstado(from: pos);
             if (!mounted) return;
-            await _putCarEmojiAt(pos);
-            await _addDestinationPinIfNeeded();
+            await _actualizarVehiculo(pos);
+            await _ensureDestinationPin();
           }
           await _publishDriverLoc(pos);
         }
@@ -542,11 +552,10 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
       _recalcularDistanciaYETA(pos);
 
       if (_mapReady) {
-        await _map!.borrarPuntoFijo();
         await _drawByEstado(from: pos, forceImmediate: true);
         if (!mounted) return;
-        await _putCarEmojiAt(pos);
-        await _addDestinationPinIfNeeded();
+        await _actualizarVehiculo(pos);
+        await _ensureDestinationPin();
       }
 
       _lastUploaded = null;
@@ -585,11 +594,10 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (_lastPos != null) {
-      await _map!.borrarPuntoFijo();
       await _drawByEstado(from: _lastPos!, forceImmediate: true);
       if (!mounted) return;
-      await _putCarEmojiAt(_lastPos!);
-      await _addDestinationPinIfNeeded();
+      await _actualizarVehiculo(_lastPos!);
+      await _ensureDestinationPin();
     }
   }
 
@@ -689,38 +697,41 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
     }
   }
 
-  // ================== "Autito" con emoji 🚕 ==================
+  // ================== Vehículo del conductor (animado) 🚗🏍️ ==================
 
-  Future<void> _putCarEmojiAt(geo.Position pos) async {
+  /// Mueve el vehículo del conductor de forma fluida (interpolada) a la nueva
+  /// posición. El ícono depende del servicio (auto/moto/…).
+  Future<void> _actualizarVehiculo(geo.Position pos) async {
     if (_map == null || !_mapReady) return;
     try {
-      await _map!.agregarPuntoFijo(
-        mb.Point(coordinates: mb.Position(pos.longitude, pos.latitude)),
-        fillColor: Colors.white,
-        strokeColor: _verde,
-        radius: 5,
-        strokeWidth: 6,
-        label: '🚕',
+      await _map!.actualizarVehiculo(
+        pos.latitude,
+        pos.longitude,
+        servicio: _servicio,
       );
     } catch (_) {}
   }
 
   // ================== Pin verde del objetivo 📍 ==================
 
-  Future<void> _addDestinationPinIfNeeded() async {
+  /// Dibuja el pin del objetivo (recogida o destino) SOLO si cambió respecto
+  /// al último dibujado. Así no se redibuja en cada tick (evita parpadeo y
+  /// marcadores duplicados).
+  Future<void> _ensureDestinationPin() async {
     if (_map == null || !_mapReady) return;
 
     final est = _estado.toLowerCase().replaceAll(' ', '_');
+    final double? lat = (est == 'en_curso') ? _destLat : _origLat;
+    final double? lng = (est == 'en_curso') ? _destLng : _origLng;
+    if (lat == null || lng == null) return;
 
-    if (est == 'en_curso') {
-      if (_destLat != null && _destLng != null) {
-        await _putDestinationPin(_destLat!, _destLng!);
-      }
-    } else {
-      if (_origLat != null && _origLng != null) {
-        await _putDestinationPin(_origLat!, _origLng!);
-      }
-    }
+    if (_pinLat == lat && _pinLng == lng) return; // ya dibujado en ese punto
+
+    // El objetivo cambió (o primera vez): limpia el pin anterior y coloca uno.
+    await _map!.borrarPuntoFijo();
+    await _putDestinationPin(lat, lng);
+    _pinLat = lat;
+    _pinLng = lng;
   }
 
   Future<void> _putDestinationPin(double lat, double lng) async {
@@ -1012,11 +1023,10 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
       _startTrackingIfNeeded();
 
       if (_mapReady && _lastPos != null) {
-        await _map!.borrarPuntoFijo();
         await _drawByEstado(from: _lastPos!, forceImmediate: true);
         if (!mounted) return;
-        await _putCarEmojiAt(_lastPos!);
-        await _addDestinationPinIfNeeded();
+        await _actualizarVehiculo(_lastPos!);
+        await _ensureDestinationPin();
       }
 
       _snack('Viaje iniciado.');
@@ -1334,15 +1344,31 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
   }
 
   Future<void> _registrarComisionViaje(Map<String, dynamic> viajeData) async {
+    // Precio: preferimos `tarifa.total` (con descuento), fallback a precioOfrecido
+    final tarifaMap = viajeData['tarifa'] as Map<String, dynamic>?;
+    final totalRaw = (tarifaMap?['total'] ?? viajeData['total'] ?? 0) as num;
+    final ofrecidoRaw =
+        (tarifaMap?['precioOfrecido'] ?? tarifaMap?['precioRecomendado'] ?? 0)
+            as num;
     final montoTotal =
-        ((viajeData['tarifa']?['total'] ?? viajeData['total'] ?? 0) as num)
-            .toDouble();
+        (totalRaw > 0 ? totalRaw : ofrecidoRaw).toDouble();
+
     final servicio = (viajeData['servicio'] as String?) ?? 'Taxi';
     final viajeId = _rutaDoc?.split('/').last ?? '';
     final pasajeroId = viajeData['uidPasajero'] as String?;
     final pasajeroNombre = viajeData['nombrePasajero'] as String?;
 
-    final departamento = viajeData['departamento'] as String? ?? 'Cochabamba';
+    // Departamento y país: en la raíz del doc o dentro de 'origen'
+    final origen = viajeData['origen'] as Map<String, dynamic>?;
+    final departamento =
+        (viajeData['departamento'] as String?) ??
+        (origen?['departamento'] as String?) ??
+        'Cochabamba';
+    final pais =
+        (viajeData['pais'] as String?) ??
+        (origen?['pais'] as String?) ??
+        '';
+
     double porcentajeComision = 0.0;
 
     final servicioKey = servicio
@@ -1351,19 +1377,36 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
         .replaceAll(RegExp(r'[^\w\-]'), '')
         .toLowerCase();
 
-    final tarifaDocPath = 'empresas/mujeresalvolante/tarifas/$departamento';
-    final tarifaDoc = await FirebaseFirestore.instance.doc(tarifaDocPath).get();
+    // Intentar los mismos candidatos de doc ID que usa el servicio de tarifas
+    final depRaw = departamento.trim();
+    final depLow = depRaw.toLowerCase();
+    final pRaw = pais.trim();
+    final pLow = pRaw.toLowerCase();
+    final candidates = <String>[
+      if (pRaw.isNotEmpty) ...['${pRaw}__$depRaw', '${pRaw}__$depLow', '${pLow}__$depLow'],
+      if (pRaw.isNotEmpty) ...['${pRaw}_$depRaw', '${pRaw}_$depLow', '${pLow}_$depLow'],
+      depRaw,
+      depLow,
+    ];
 
-    if (tarifaDoc.exists) {
+    for (final candidato in candidates) {
+      final path = 'empresas/mujeresalvolante/tarifas/$candidato';
+      final tarifaDoc =
+          await FirebaseFirestore.instance.doc(path).get();
+      if (!tarifaDoc.exists) continue;
+
       final tarifaData = tarifaDoc.data();
       final servicioData = tarifaData?[servicioKey] as Map<String, dynamic>?;
       final tarifasMap = servicioData?['tarifas'] as Map<String, dynamic>?;
-      porcentajeComision = ((tarifasMap?['comision'] ?? 0) as num).toDouble();
+      porcentajeComision =
+          ((tarifasMap?['comision'] ?? 0) as num).toDouble();
+      if (porcentajeComision > 0) break;
     }
 
     if (porcentajeComision <= 0) {
       throw Exception(
-        'No se registra comisión: porcentaje=$porcentajeComision (debe ser > 0)',
+        'Comisión no configurada para servicio="$servicioKey" '
+        'departamento="$departamento" (candidatos: ${candidates.join(", ")})',
       );
     }
     if (montoTotal <= 0) {
@@ -1395,16 +1438,29 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
 
     if (comisionesCobradas.contains(ymdFecha)) return;
 
-    final montoTotal =
-        ((viajeData['tarifa']?['total'] ?? viajeData['total'] ?? 0) as num)
-            .toDouble();
+    final tarifaMap = viajeData['tarifa'] as Map<String, dynamic>?;
+    final totalRaw = (tarifaMap?['total'] ?? viajeData['total'] ?? 0) as num;
+    final ofrecidoRaw =
+        (tarifaMap?['precioOfrecido'] ?? tarifaMap?['precioRecomendado'] ?? 0)
+            as num;
+    final montoTotal = (totalRaw > 0 ? totalRaw : ofrecidoRaw).toDouble();
+
     final servicio = (viajeData['servicio'] as String?) ?? 'Taxi';
     final ordenId = _rutaDoc?.split('/').last ?? '';
     final viajeIdUnico = '${ordenId}_$ymdFecha';
     final pasajeroId = viajeData['uidPasajero'] as String?;
     final pasajeroNombre = viajeData['nombrePasajero'] as String?;
 
-    final departamento = viajeData['departamento'] as String? ?? 'Cochabamba';
+    final origen = viajeData['origen'] as Map<String, dynamic>?;
+    final departamento =
+        (viajeData['departamento'] as String?) ??
+        (origen?['departamento'] as String?) ??
+        'Cochabamba';
+    final pais =
+        (viajeData['pais'] as String?) ??
+        (origen?['pais'] as String?) ??
+        '';
+
     double porcentajeComision = 0.0;
 
     final servicioKey = servicio
@@ -1413,18 +1469,37 @@ class _EnCaminoPageState extends State<EnCaminoPage> {
         .replaceAll(RegExp(r'[^\w\-]'), '')
         .toLowerCase();
 
-    final tarifaDocPath = 'empresas/mujeresalvolante/tarifas/$departamento';
-    final tarifaDoc = await FirebaseFirestore.instance.doc(tarifaDocPath).get();
+    final depRaw = departamento.trim();
+    final depLow = depRaw.toLowerCase();
+    final pRaw = pais.trim();
+    final pLow = pRaw.toLowerCase();
+    final candidates = <String>[
+      if (pRaw.isNotEmpty) ...['${pRaw}__$depRaw', '${pRaw}__$depLow', '${pLow}__$depLow'],
+      if (pRaw.isNotEmpty) ...['${pRaw}_$depRaw', '${pRaw}_$depLow', '${pLow}_$depLow'],
+      depRaw,
+      depLow,
+    ];
 
-    if (tarifaDoc.exists) {
+    for (final candidato in candidates) {
+      final tarifaDoc =
+          await FirebaseFirestore.instance
+              .doc('empresas/mujeresalvolante/tarifas/$candidato')
+              .get();
+      if (!tarifaDoc.exists) continue;
+
       final tarifaData = tarifaDoc.data();
       final servicioData = tarifaData?[servicioKey] as Map<String, dynamic>?;
       final tarifasMap = servicioData?['tarifas'] as Map<String, dynamic>?;
-      porcentajeComision = ((tarifasMap?['comision'] ?? 0) as num).toDouble();
+      porcentajeComision =
+          ((tarifasMap?['comision'] ?? 0) as num).toDouble();
+      if (porcentajeComision > 0) break;
     }
 
     if (porcentajeComision <= 0) {
-      throw Exception('No se puede registrar comisión: porcentaje inválido');
+      throw Exception(
+        'Comisión no configurada para servicio="$servicioKey" '
+        'departamento="$departamento" (candidatos: ${candidates.join(", ")})',
+      );
     }
     if (montoTotal <= 0) {
       throw Exception('No se puede registrar comisión: monto inválido');

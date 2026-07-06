@@ -11,26 +11,25 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
-  // Mantén sincronizado el índice aunque cambies de ruta con back/links
   void _syncIndexWithPath() {
     final p = Modular.to.path;
     if (p.endsWith('/home') || p.endsWith('/home/')) {
-      setState(() => _currentIndex = 0); // default -> viajes
+      setState(() => _currentIndex = 0);
     } else if (p.contains('/home/viajes')) {
       setState(() => _currentIndex = 0);
     } else if (p.contains('/home/historial')) {
       setState(() => _currentIndex = 1);
-    } else if (p.contains('/home/chats')) {
+    } else if (p.contains('/home/lugares') && !p.contains('/home/lugares-guardados')) {
       setState(() => _currentIndex = 2);
+    } else if (p.contains('/home/chats')) {
+      setState(() => _currentIndex = 3);
     }
-    // Billetera eliminada - solo para taxistas
   }
 
   @override
   void initState() {
     super.initState();
 
-    // Ir al hijo por defecto al entrar a /home
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final p = Modular.to.path;
       if (p == '/home' || p == '/home/') {
@@ -59,6 +58,9 @@ class _HomePageState extends State<HomePage> {
         Modular.to.navigate('/home/historial');
         break;
       case 2:
+        Modular.to.navigate('/home/lugares');
+        break;
+      case 3:
         Modular.to.navigate('/home/chats', arguments: {'mode': 'pasajero'});
         break;
     }
@@ -67,16 +69,14 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AQUÍ se pintan los hijos de /home
       body: const RouterOutlet(),
-
-      // Nav inferior
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTap,
-        selectedItemColor: Colors.black,
+        selectedItemColor: const Color(0xFF1B5E20),
         unselectedItemColor: Colors.black54,
         backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.list_alt_rounded),
@@ -85,6 +85,10 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart_rounded),
             label: 'Historial',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.place_rounded),
+            label: 'Lugares',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat_rounded),

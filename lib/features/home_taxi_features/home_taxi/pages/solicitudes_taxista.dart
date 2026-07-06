@@ -596,9 +596,9 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
             (rutaDoc != null && rutaDoc.contains('ordenesProgramados'));
 
         if (esProgramado) {
-          _tabController.index = 1; // Programados
+          _tabController.index = 1; 
         } else {
-          _tabController.index = 0; // Normales
+          _tabController.index = 0; 
         }
       }
     });
@@ -942,58 +942,6 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
     // DESACTIVADA: La validación se hace en home_taxista_page.dart
     // Esta validación duplicada causaba loops de redirección
     return;
-
-    /* CÓDIGO ANTIGUO COMENTADO
-    try {
-      final uid = fb.FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('taxistas')
-          .doc(uid)
-          .get();
-
-      if (!docSnapshot.exists) return;
-
-      final data = docSnapshot.data();
-      final documentosVehiculo =
-          data?['documentosVehiculo'] as Map<String, dynamic>?;
-
-      if (documentosVehiculo == null) {
-        if (!mounted) return;
-        _redirigirADocumentos();
-        return;
-      }
-
-      final camposObligatorios = [
-        'numeroLicencia',
-        'marca',
-        'color',
-        'numeroAsientos',
-        'fotoAntecedentesPenales',
-        'fotoConductor',
-        'fotoCarneIdentidadAnverso',
-        'fotoCarneIdentidadReverso',
-        'fotoLicenciaConducirAnverso',
-        'fotoLicenciaConducirReverso',
-        'fotoSoat',
-        'fotoPermisoCirculacion',
-        'fotoRevisionTecnica',
-        'fotoVehiculo1',
-      ];
-
-      for (final campo in camposObligatorios) {
-        final v = documentosVehiculo[campo];
-        if (v == null || (v is String && v.isEmpty)) {
-          if (!mounted) return;
-          _redirigirADocumentos();
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error al verificar documentos: $e');
-    }
-    */
   }
 
   @override
@@ -1274,25 +1222,27 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
                     ),
                   ),
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _segmentLabel(
-                        'Normales',
-                        Icons.local_taxi_rounded,
-                        0,
-                        i == 0,
+                Positioned.fill(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _segmentLabel(
+                          'Normales',
+                          Icons.local_taxi_rounded,
+                          0,
+                          i == 0,
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: _segmentLabel(
-                        'Programados',
-                        Icons.event_available_rounded,
-                        1,
-                        i == 1,
+                      Expanded(
+                        child: _segmentLabel(
+                          'Programados',
+                          Icons.event_available_rounded,
+                          1,
+                          i == 1,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             );
@@ -1308,24 +1258,26 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () => _tabController.animateTo(idx),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 17,
-              color: active ? const Color(0xFF0F172A) : Colors.black54,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              text,
-              style: TextStyle(
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 17,
                 color: active ? const Color(0xFF0F172A) : Colors.black54,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                fontSize: 13.5,
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Text(
+                text,
+                style: TextStyle(
+                  color: active ? const Color(0xFF0F172A) : Colors.black54,
+                  fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 13.5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1592,8 +1544,6 @@ class _SolicitudesTaxistaPageState extends State<SolicitudesTaxistaPage>
           '📍 Total de órdenes programadas antes de filtrar: ${allDocs.length}',
         );
 
-        // 1. Si estado es 'pedido' -> Mostrar a todos.
-        // 2. Si estado NO es 'pedido' (ej. aceptado) -> Mostrar SOLO si soy el conductor.
         final docs = allDocs.where((doc) {
           final data = doc.data();
           final estado = data['estado']?.toString() ?? '';

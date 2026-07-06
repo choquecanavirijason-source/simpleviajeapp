@@ -859,6 +859,9 @@ class _FareCardSolid extends StatelessWidget {
   static const kAccentDark = Color(0xFF16A34A);
   static const kSoftBg = Color(0xFFF1F5F9);
 
+  /// Moneda usada en toda la tarjeta. La app opera en Argentina → ARS.
+  static const String kMoneda = 'ARS';
+
   String _fmtDoubleFull(double v) => v.toStringAsFixed(2);
 
   @override
@@ -943,8 +946,8 @@ class _FareCardSolid extends StatelessWidget {
                   ),
                   child: Text(
                     estadoViaje == 'aceptado'
-                        ? 'Total: ${_fmtDoubleFull(ofrecido)} Bs'
-                        : 'Recomendado: ${_fmtDoubleFull(sugerido)} Bs',
+                        ? 'Total: ${_fmtDoubleFull(ofrecido)} $kMoneda'
+                        : 'Recomendado: ${_fmtDoubleFull(sugerido)} $kMoneda',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: kAccentDark,
                       fontWeight: FontWeight.w700,
@@ -1008,7 +1011,7 @@ class _FareCardSolid extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'ARS',
+                              kMoneda,
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1156,7 +1159,7 @@ class _OffersListRealtimeState extends State<_OffersListRealtime> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text('Confirmar'),
-        content: Text('¿Estás seguro de aceptar por: $precioTexto Bs?'),
+        content: Text('¿Estás seguro de aceptar por: $precioTexto ARS?'),
         actions: [
           TextButton(
             onPressed: () =>

@@ -91,7 +91,7 @@ class _BilleteraTaxistaPageState extends State<BilleteraTaxistaPage>
           ],
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(54),
+          preferredSize: const Size.fromHeight(52),
           child: Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -100,11 +100,11 @@ class _BilleteraTaxistaPageState extends State<BilleteraTaxistaPage>
               labelColor: Colors.white,
               unselectedLabelColor: Colors.black54,
               labelStyle: const TextStyle(
-                fontSize: 13,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w800,
               ),
               unselectedLabelStyle: const TextStyle(
-                fontSize: 13,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w600,
               ),
               indicator: BoxDecoration(
@@ -122,9 +122,9 @@ class _BilleteraTaxistaPageState extends State<BilleteraTaxistaPage>
               dividerColor: Colors.transparent,
               splashBorderRadius: BorderRadius.circular(10),
               tabs: const [
-                Tab(text: 'Recargas', icon: Icon(Icons.add_circle_outline, size: 18)),
-                Tab(text: 'Comisiones', icon: Icon(Icons.receipt_long, size: 18)),
-                Tab(text: 'Reportes', icon: Icon(Icons.analytics_outlined, size: 18)),
+                Tab(text: 'Recargas'),
+                Tab(text: 'Comisiones'),
+                Tab(text: 'Reportes'),
               ],
             ),
           ),
@@ -909,9 +909,11 @@ class _TabRecargas extends StatelessWidget {
                       child: _EmptyState(mensaje: 'Sin recargas registradas'),
                     )
                   : SliverPadding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        8,
+                        16,
+                        8 + MediaQuery.of(context).viewPadding.bottom + 80,
                       ),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
@@ -968,9 +970,11 @@ class _TabComisiones extends StatelessWidget {
                       backgroundColor: Colors.green.shade600,
                       onRefresh: onRefresh,
                       child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          8,
+                          16,
+                          8 + MediaQuery.of(context).viewPadding.bottom + 80,
                         ),
                         itemCount: comisiones.length,
                         itemBuilder: (context, i) =>
@@ -1019,8 +1023,9 @@ class _TabReportes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final navBarPad = MediaQuery.of(context).viewPadding.bottom + 80;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + navBarPad),
       children: [
         const Text(
           'Reportes de Actividad',
@@ -1721,11 +1726,14 @@ class _TxnTileRecarga extends StatelessWidget {
                   children: [
                     _statusChip(recarga.estado),
                     const SizedBox(width: 8),
-                    Text(
-                      '$hour • $day',
-                      style: TextStyle(
-                        color: Colors.green.shade600,
-                        fontSize: 11,
+                    Flexible(
+                      child: Text(
+                        '$hour • $day',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.green.shade600,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ],

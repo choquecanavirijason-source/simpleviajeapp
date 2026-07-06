@@ -167,6 +167,31 @@ class MapaController {
 
   Future<void> borrarPuntoFijo() => _svc.borrarPuntoFijo();
   Future<void> borrarUltimoPuntoFijo() => _svc.borrarUltimoPuntoFijo();
+
+  /// Coloca/actualiza el vehículo del conductor con movimiento fluido.
+  /// [servicio] elige el ícono mostrado (auto/moto/confort/…).
+  Future<void> actualizarVehiculo(
+    double lat,
+    double lng, {
+    String? servicio,
+  }) async {
+    try {
+      if (_svc is MapboxService) {
+        await (_svc as MapboxService)
+            .actualizarVehiculo(lat, lng, servicio: servicio);
+      }
+    } catch (_) {}
+  }
+
+  /// Quita el marcador del vehículo del mapa.
+  Future<void> limpiarVehiculo() async {
+    try {
+      if (_svc is MapboxService) {
+        await (_svc as MapboxService).limpiarVehiculo();
+      }
+    } catch (_) {}
+  }
+
   Future<void> moveTo(double lat, double lng, {double zoom = 15}) =>
       _svc.moveTo(lat, lng, zoom: zoom);
 }

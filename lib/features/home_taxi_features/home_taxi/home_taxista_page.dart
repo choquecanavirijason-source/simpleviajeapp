@@ -4,11 +4,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:buses2/features/home_taxi_features/home_taxi/services/DriverOfferCounterOfferListenerService.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:buses2/features/chats/pages/chat_list_page.dart';
 import '../documentos_vehiculo/services/documentos_config_service.dart';
 import '../documentos_vehiculo/models/documento_config_model.dart';
 import 'services/driver_offer_accepted_listener_service.dart';
 import 'services/orders_listener.dart';
 import 'widgets/menu_lateral.dart';
+import 'pages/solicitudes_taxista.dart';
+import 'pages/historial_taxista.dart';
+import 'pages/billetera_taxista.dart';
 
 class HomeTaxista extends StatefulWidget {
   const HomeTaxista({Key? key}) : super(key: key);
@@ -30,19 +34,58 @@ class _HomeTaxistaState extends State<HomeTaxista> {
   bool _mostrarBannerDocumentos = false;
   int _cantidadDocumentosFaltantes = 0;
 
+  // Tabs ya visitados: se construyen la primera vez y quedan vivos en el
+  // IndexedStack para que cambiar de tab no recargue los datos.
+  final Set<int> _tabsVisitados = {0};
+  final Map<int, Widget> _tabCache = {};
+
+  void _setIndex(int i) {
+    if (!mounted) return;
+    setState(() {
+      _currentIndex = i;
+      _tabsVisitados.add(i);
+    });
+  }
+
   void _syncIndexWithPath() {
     final p = Modular.to.path;
     if (p == '/home-taxista' || p == '/home-taxista/') {
-      setState(() => _currentIndex = 0); // default
+      _setIndex(0); // default
     } else if (p.contains('/home-taxista/viajes_taxista')) {
-      setState(() => _currentIndex = 0);
+      _setIndex(0);
     } else if (p.contains('/home-taxista/historial_taxista')) {
-      setState(() => _currentIndex = 1);
+      _setIndex(1);
     } else if (p.contains('/home-taxista/billetera_taxista')) {
       // ✅ sin espacio
-      setState(() => _currentIndex = 2);
+      _setIndex(2);
     } else if (p.contains('/home-taxista/chats_taxista')) {
-      setState(() => _currentIndex = 3);
+      _setIndex(3);
+    }
+  }
+
+  /// Construye la página de un tab (solo la primera vez; luego se cachea
+  /// para que el subtree no se reconstruya al cambiar de tab).
+  Widget _buildTab(int i) {
+    switch (i) {
+      case 0:
+        return const SolicitudesTaxistaPage();
+      case 1:
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid == null || uid.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Historial (Taxista)')),
+            body: const Center(
+              child: Text('No hay sesión activa. Inicia sesión.'),
+            ),
+          );
+        }
+        return HistorialTaxistaPage(uidTaxista: uid);
+      case 2:
+        return const BilleteraTaxistaPage();
+      case 3:
+        return ChatListPage(mode: 'taxista');
+      default:
+        return const SizedBox.shrink();
     }
   }
 
@@ -410,7 +453,9 @@ class _HomeTaxistaState extends State<HomeTaxista> {
   }
 
   void _onTap(int i) {
-    setState(() => _currentIndex = i);
+    _setIndex(i);
+    // Se mantiene la navegación para que la ruta (deep links, notificaciones,
+    // Modular.to.path) siga en sincronía; la UI la muestra el IndexedStack.
     switch (i) {
       case 0:
         Modular.to.navigate('/home-taxista/viajes_taxista');
@@ -486,17 +531,19 @@ class _HomeTaxistaState extends State<HomeTaxista> {
             // Banner de documentos faltantes (no bloquea acceso)
             if (_mostrarBannerDocumentos)
               Material(
-                color: Colors.orange.shade50,
+                color: const Color(0xFFFFF3E0),
                 child: InkWell(
                   onTap: () {
                     Modular.to.pushNamed('/documentos-nuevos').then((_) {
-                      // Recargar verificación después de volver
                       _verificarDocumentosCompletos();
                     });
                   },
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
@@ -507,10 +554,17 @@ class _HomeTaxistaState extends State<HomeTaxista> {
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: Colors.orange.shade800,
-                          size: 24,
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade700,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.white,
+                            size: 17,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -518,28 +572,34 @@ class _HomeTaxistaState extends State<HomeTaxista> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Documentos requeridos pendientes',
+                                'Documentos pendientes',
                                 style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
                                   color: Colors.orange.shade900,
                                 ),
                               ),
-                              const SizedBox(height: 2),
                               Text(
-                                'Tienes $_cantidadDocumentosFaltantes documento${_cantidadDocumentosFaltantes > 1 ? "s" : ""} por completar',
+                                '$_cantidadDocumentosFaltantes documento${_cantidadDocumentosFaltantes > 1 ? "s" : ""} por completar · Toca para ir',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 11.5,
                                   color: Colors.orange.shade800,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.orange.shade700,
-                          size: 16,
+                        GestureDetector(
+                          onTap: () =>
+                              setState(() => _mostrarBannerDocumentos = false),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 17,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -547,8 +607,19 @@ class _HomeTaxistaState extends State<HomeTaxista> {
                 ),
               ),
 
-            // Contenido principal
-            const Expanded(child: RouterOutlet()),
+            // Contenido principal: IndexedStack mantiene vivas las páginas
+            // ya visitadas (no se recargan los datos al cambiar de tab).
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: List.generate(
+                  4,
+                  (i) => _tabsVisitados.contains(i)
+                      ? (_tabCache[i] ??= _buildTab(i))
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ),
           ],
         ),
 
@@ -577,8 +648,6 @@ class _NavItemData {
   const _NavItemData({required this.icon, required this.label});
 }
 
-/// Bottom navigation flotante: pill blanco redondeado con sombra,
-/// separado de los bordes y con el item activo resaltado.
 class _FloatingNavBar extends StatelessWidget {
   const _FloatingNavBar({
     required this.currentIndex,
@@ -590,34 +659,40 @@ class _FloatingNavBar extends StatelessWidget {
   final ValueChanged<int> onTap;
   final List<_NavItemData> items;
 
-  static const Color _activeColor = Color(0xFF0F172A);
-
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(14, 6, 14, 10 + bottomInset),
-      child: Material(
-        elevation: 14,
-        shadowColor: Colors.black.withOpacity(0.20),
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(items.length, (i) {
-              final active = i == currentIndex;
-              return Expanded(
-                child: _FloatingNavCell(
-                  data: items[i],
-                  active: active,
-                  activeColor: _activeColor,
-                  onTap: () => onTap(i),
-                ),
-              );
-            }),
-          ),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + bottomInset),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.13),
+              blurRadius: 24,
+              spreadRadius: 0,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(5),
+        child: Row(
+          children: List.generate(items.length, (i) {
+            return Expanded(
+              child: _FloatingNavCell(
+                data: items[i],
+                active: i == currentIndex,
+                onTap: () => onTap(i),
+              ),
+            );
+          }),
         ),
       ),
     );
@@ -628,56 +703,55 @@ class _FloatingNavCell extends StatelessWidget {
   const _FloatingNavCell({
     required this.data,
     required this.active,
-    required this.activeColor,
     required this.onTap,
   });
 
   final _NavItemData data;
   final bool active;
-  final Color activeColor;
   final VoidCallback onTap;
+
+  static const _activeGreen = Color(0xFF1B5E20);
+  static const _inactiveColor = Color(0xFF94A3B8);
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        splashColor: activeColor.withOpacity(0.10),
-        highlightColor: activeColor.withOpacity(0.06),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          decoration: BoxDecoration(
-            color: active
-                ? activeColor.withOpacity(0.10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? _activeGreen : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              scale: active ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: Icon(
                 data.icon,
-                size: 22,
-                color: active ? activeColor : Colors.black54,
+                size: 21,
+                color: active ? Colors.white : _inactiveColor,
               ),
-              const SizedBox(height: 4),
-              Text(
-                data.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  height: 1.1,
-                  fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                  color: active ? activeColor : Colors.black54,
-                ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              data.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.1,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: active ? Colors.white : _inactiveColor,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

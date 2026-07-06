@@ -595,10 +595,10 @@ class _NewServicePageState extends State<NewServicePage> {
                 boxIconRight: Icons.attach_money,
                 introText:
                     'El precio se aplicará según el tramo de distancia. '
-                    'Ej.: menor a 10 km → Bs. 40; Menor a 20 km → Bs. 60; etc.',
+                    'Ej.: menor a 10 km → ARS 40; Menor a 20 km → ARS 60; etc.',
                 rowTitlePrefix: 'Tramo',
                 leftLabel: 'Desde (km)',
-                rightLabel: 'Precio (Bs.)',
+                rightLabel: 'Precio (ARS)',
                 leftPlaceholder: '0.00',
                 rightPlaceholder: '0.00',
                 initialTramos: _tramosAero,

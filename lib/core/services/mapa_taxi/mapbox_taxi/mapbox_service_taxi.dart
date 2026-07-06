@@ -16,6 +16,7 @@ import 'circuloPuntoA_taxi.dart'
         UserCircleManager,
         RadarUserCircleManager;
 import 'circuloPunto_taxi.dart' show PuntoFijoCircleManager;
+import 'vehiculo_marker_manager.dart' show VehiculoMarkerManager;
 import './km_min_taxi.dart' show MapboxDirectionsClient;
 import '../../mapa/route_cache_manager.dart';
 
@@ -31,6 +32,7 @@ class MapboxService implements MapService {
 
   IUserCircleManager? _userCircleManager;
   PuntoFijoCircleManager? _puntoFijoMgr;
+  VehiculoMarkerManager? _vehiculoMgr;
   MapboxDirectionsClient? _dirClient;
 
   final PuntoAStyle puntoAStyle;
@@ -71,12 +73,14 @@ class MapboxService implements MapService {
     _routeCache.clear();
     _userCircleManager?.dispose();
     _puntoFijoMgr?.borrar();
+    _vehiculoMgr?.dispose();
     _map?.dispose();
 
     _map = null;
     _isInitialized = false;
     _userCircleManager = null;
     _puntoFijoMgr = null;
+    _vehiculoMgr = null;
     _dirClient = null;
     _routeLayerExists = false;
     _currentRouteGeometry = null;
@@ -423,8 +427,26 @@ class MapboxService implements MapService {
   }
 
   /// Borra solo el último punto fijo agregado (ej: el auto anterior)
+  @override
   Future<void> borrarUltimoPuntoFijo() async {
     await _puntoFijoMgr?.borrarUltimo();
+  }
+
+  /// Coloca/actualiza el vehículo del conductor con movimiento fluido
+  /// (interpolado). [servicio] elige el ícono (auto/moto/confort/…).
+  Future<void> actualizarVehiculo(
+    double lat,
+    double lng, {
+    String? servicio,
+  }) async {
+    if (_map == null) return;
+    _vehiculoMgr ??= VehiculoMarkerManager(_map!);
+    await _vehiculoMgr!.actualizar(lat, lng, servicio: servicio);
+  }
+
+  /// Quita el marcador del vehículo del mapa.
+  Future<void> limpiarVehiculo() async {
+    await _vehiculoMgr?.limpiar();
   }
 
   Future<String?> obtenerDireccionDesdeCoordenadas(

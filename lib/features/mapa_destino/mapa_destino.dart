@@ -38,7 +38,6 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart'
 import './widgets/modal_inferior1.dart';
 import './widgets/modal_inferior2.dart';
 import './widgets/modalpaso1_titulo_pill.dart';
-import './widgets/radar_buscando.dart';
 
 // Guardado normal (bool)
 import './service/guardar_orden.dart';
@@ -100,7 +99,7 @@ class _MapaDestinoState extends State<MapaDestino> {
   // Modal inferior 2 (arranca oculto)
   double _sheet2Min = 0.00;
   static const double _sheet2Initial = 0.00;
-  static const double _sheet2Max = 0.45;
+  static const double _sheet2Max = 0.72;
 
   // Tarifa/control
   num? _tarifa;
@@ -140,8 +139,6 @@ class _MapaDestinoState extends State<MapaDestino> {
 
   // ===== Stream de taxistas online cercanos =====
   StreamSubscription<List<TaxistaOnline>>? _taxistasSub;
-  int _taxistasCount = 0;
-  List<String> _serviciosCercanos = [];
 
   // ===== Cupón =====
   final TextEditingController _cuponCtrl = TextEditingController();
@@ -423,15 +420,6 @@ class _MapaDestinoState extends State<MapaDestino> {
         )
         .listen((lista) async {
           debugPrint('🟢 taxistas: recibidos ${lista.length} en radio 5km');
-          if (mounted) {
-            setState(() {
-              _taxistasCount = lista.length;
-              _serviciosCercanos = lista
-                  .map((t) => t.servicio ?? '')
-                  .where((s) => s.isNotEmpty)
-                  .toList();
-            });
-          }
           if (_mapCtrl == null) return;
           final markers = lista
               .map((t) => TaxistaMarkerData(
@@ -474,7 +462,7 @@ class _MapaDestinoState extends State<MapaDestino> {
     setState(() => _sheet2Min = 0.25);
     await WidgetsBinding.instance.endOfFrame;
     await _sheet2Ctrl.animateTo(
-      0.63,
+      0.65,
       duration: const Duration(milliseconds: 380),
       curve: Curves.easeOutCubic,
     );
@@ -584,10 +572,6 @@ class _MapaDestinoState extends State<MapaDestino> {
           setState(() {
             puntoBLat = _bFixLat;
             puntoBLng = _bFixLng;
-
-            // ✅ IMPORTANTE:
-            // - si openSheet2=true => mostramos botones de pedir (porque abriremos resumen)
-            // - si openSheet2=false => NO mostramos pedir todavía; mostramos botón "Ver costo"
             _mostrarBotonPedido = _argOpenSheet2;
           });
 
@@ -663,6 +647,27 @@ class _MapaDestinoState extends State<MapaDestino> {
           strokeWidth: 6,
         );
 
+        // Modo solo seleccionar: sólo marcamos el lugar. No es un viaje,
+        // así que no dibujamos ruta ni calculamos distancia/precio: retornamos
+        // el punto elegido y cerramos.
+        if (_soloSeleccionar) {
+          setState(() {
+            puntoBLat = _bFixLat;
+            puntoBLng = _bFixLng;
+          });
+          final result = {
+            'lat': _bFixLat,
+            'lng': _bFixLng,
+            'calle': _fixCalle,
+            'ciudad': _fixCiudad,
+            'pais': _fixPais,
+            'departamento': puntoADepartamento,
+            'texto': _bFixDireccion,
+          };
+          if (mounted) Modular.to.pop(result);
+          return;
+        }
+
         await _mapCtrl!.dibujarRutaDesdeHasta(
           a: Point(coordinates: Position(puntoALng!, puntoALat!)),
           b: Point(coordinates: Position(_bFixLng!, _bFixLat!)),
@@ -701,21 +706,6 @@ class _MapaDestinoState extends State<MapaDestino> {
           puntoBLng = _bFixLng;
           _mostrarBotonPedido = true;
         });
-
-        // Modo solo seleccionar: retornar y cerrar
-        if (_soloSeleccionar) {
-          final result = {
-            'lat': _bFixLat,
-            'lng': _bFixLng,
-            'calle': _fixCalle,
-            'ciudad': _fixCiudad,
-            'pais': _fixPais,
-            'departamento': puntoADepartamento,
-            'texto': _bFixDireccion,
-          };
-          if (mounted) Modular.to.pop(result);
-          return;
-        }
 
         await _abrirSheet2Resumen();
       } finally {
@@ -802,6 +792,7 @@ class _MapaDestinoState extends State<MapaDestino> {
           puntoACalle: puntoACalle,
           puntoACiudad: puntoACiudad,
           puntoAPais: puntoAPais,
+          puntoADepartamento: puntoADepartamento,
           bFixLat: _bFixLat,
           bFixLng: _bFixLng,
           fixCalle: _fixCalle,
@@ -832,6 +823,7 @@ class _MapaDestinoState extends State<MapaDestino> {
         puntoACalle: puntoACalle,
         puntoACiudad: puntoACiudad,
         puntoAPais: puntoAPais,
+        puntoADepartamento: puntoADepartamento,
         bFixLat: _bFixLat,
         bFixLng: _bFixLng,
         fixCalle: _fixCalle,
@@ -961,6 +953,7 @@ class _MapaDestinoState extends State<MapaDestino> {
     return WillPopScope(
       onWillPop: _handleBack,
       child: ScaffoldConBottom(
+        resizeToAvoidBottomInset: false,
         body: Stack(
           children: [
             // Mapa
@@ -1016,15 +1009,6 @@ class _MapaDestinoState extends State<MapaDestino> {
               },
             ),
 
-            // Radar de conductores (solo visible antes de fijar destino)
-            if (_mapCtrl != null && !_bFijado)
-              Align(
-                alignment: const Alignment(0, -0.12),
-                child: RadarBuscando(
-                  conductoresCercanos: _taxistasCount,
-                  serviciosCercanos: _serviciosCercanos,
-                ),
-              ),
 
             // Etiqueta superior
             Align(
@@ -1136,6 +1120,9 @@ class _MapaDestinoState extends State<MapaDestino> {
               ),
 
             // Modal inferior 1 (servicios)
+            // En modo "solo seleccionar" (marcar Casa/Trabajo/Favorito) no es
+            // un viaje: no se muestra la hoja de servicios ni la de costo.
+            if (!_soloSeleccionar)
             ModalInferior1(
               controller: _sheet1Ctrl,
               initialChildSize: _sheet1Initial,
@@ -1183,6 +1170,7 @@ class _MapaDestinoState extends State<MapaDestino> {
             ),
 
             // Modal inferior 2 (resumen/costo)
+            if (!_soloSeleccionar)
             ModalInferior2Block(
               controller: _sheet2Ctrl,
               initialChildSize: _sheet2Initial,
@@ -1217,31 +1205,32 @@ class _MapaDestinoState extends State<MapaDestino> {
 
         // === BTN FIJO ABAJO ===
         btnFijoAbajo: _mostrarBotonPedido
-            ? Btn_Cargando(
-                loading: _pidiendo,
-                borde: BtnBorde.borde1,
-                workingLabel: 'Enviando pedido...',
-                overlayColor: Colors.grey,
-                spinnerColor: Colors.white,
-                child: Padding(
-                  // Margen lateral para que los botones no ocupen todo el ancho.
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 🎟️ Cupón de descuento (opcional)
-                      _CuponWidget(
-                        controller: _cuponCtrl,
-                        validando: _validandoCupon,
-                        cuponAplicado: _cuponAplicado,
-                        errorCupon: _errorCupon,
-                        precioBase: _precioBaseParaCupon,
-                        onAplicar: _aplicarCupon,
-                        onQuitar: _quitarCupon,
-                      ),
-                      const SizedBox(height: 10),
-                      Boton1(
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 🎟️ Cupón de descuento (opcional)
+                    _CuponWidget(
+                      controller: _cuponCtrl,
+                      validando: _validandoCupon,
+                      cuponAplicado: _cuponAplicado,
+                      errorCupon: _errorCupon,
+                      precioBase: _precioBaseParaCupon,
+                      onAplicar: _aplicarCupon,
+                      onQuitar: _quitarCupon,
+                    ),
+                    const SizedBox(height: 10),
+                    // Solo el botón de acción principal lleva el overlay de carga
+                    Btn_Cargando(
+                      loading: _pidiendo,
+                      borde: BtnBorde.borde1,
+                      workingLabel: 'Enviando pedido...',
+                      overlayColor: const Color(0xFF16A34A),
+                      overlayOpacity: 0.88,
+                      spinnerColor: Colors.white,
+                      child: Boton1(
                         label: 'Pedir Driver',
                         color: BotonColor.color3,
                         borde: BotonBorde.borde1,
@@ -1249,7 +1238,9 @@ class _MapaDestinoState extends State<MapaDestino> {
                         iconoDerecho: Icons.send,
                         onPressed: _onPedirTaxiPressed,
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                    if (!_pidiendo) ...[
+                      const SizedBox(height: 6),
                       if (!_tieneProgramacion)
                         Boton1(
                           label: 'Viaje programado',
@@ -1269,7 +1260,7 @@ class _MapaDestinoState extends State<MapaDestino> {
                           onPressed: _cancelarProgramacion,
                         ),
                     ],
-                  ),
+                  ],
                 ),
               )
             : Btn_Cargando(
@@ -1279,16 +1270,17 @@ class _MapaDestinoState extends State<MapaDestino> {
                 overlayColor: Colors.grey,
                 spinnerColor: Colors.white,
                 child: Boton1(
-                  label: (_argAutoDestino && !_argOpenSheet2 && _bFijado)
-                      ? 'Ver costo'
-                      : 'Confirmar destino',
+                  label: _soloSeleccionar
+                      ? 'Marcar lugar'
+                      : (_argAutoDestino && !_argOpenSheet2 && _bFijado)
+                          ? 'Ver costo'
+                          : 'Confirmar destino',
                   color: BotonColor.color3,
                   borde: BotonBorde.borde1,
-                  iconoIzquierdo: Icons.local_taxi,
+                  iconoIzquierdo:
+                      _soloSeleccionar ? Icons.place : Icons.local_taxi,
                   iconoDerecho: Icons.arrow_forward_ios,
                   onPressed: () async {
-                    // ✅ Caso nuevo: venimos con destino ya fijo (autoDestino)
-                    // y el usuario debe elegir servicio y luego ver costo
                     if (_argAutoDestino && !_argOpenSheet2 && _bFijado) {
                       if (_comboSel == null || _servicioSel == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1312,12 +1304,9 @@ class _MapaDestinoState extends State<MapaDestino> {
                         );
                         return;
                       }
-
                       await _abrirSheet2Resumen();
                       return;
                     }
-
-                    // Flujo normal: confirmar destino desde el mapa
                     await _buscarTaxi();
                   },
                 ),

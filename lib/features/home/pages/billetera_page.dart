@@ -144,7 +144,7 @@ class _BilleteraPageState extends State<BilleteraPage>
                     decimal: true,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Monto (Bs)',
+                    labelText: 'Monto (ARS)',
                     prefixIcon: Icon(Icons.attach_money),
                   ),
                 ),

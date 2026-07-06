@@ -202,7 +202,7 @@ class TaxistaWalletService {
       'montoComision': montoComision,
       'mensaje': suficiente
           ? 'Saldo suficiente'
-          : 'Saldo insuficiente. Necesitas recargar al menos Bs. ${(montoComision - saldoActual.saldo).toStringAsFixed(2)}',
+          : 'Saldo insuficiente. Necesitas recargar al menos ARS ${(montoComision - saldoActual.saldo).toStringAsFixed(2)}',
     };
   }
 

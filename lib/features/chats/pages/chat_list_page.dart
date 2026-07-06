@@ -6,13 +6,16 @@ import 'package:buses2/core/utils/string_extensions.dart';
 
 class ChatListPage extends StatelessWidget {
   final ChatRepository repository = ChatRepository();
-  String mode = ''; //modo taxista o pasajero
 
-  ChatListPage({super.key});
+  /// 'taxista' o 'pasajero'. Si no se pasa por constructor, se intenta leer
+  /// de los argumentos de la ruta; por defecto 'pasajero'.
+  final String? mode;
+
+  ChatListPage({super.key, this.mode});
   @override
   Widget build(BuildContext context) {
-    final args = Modular.args.data as Map<String, dynamic>;
-    mode = args['mode'] ?? 'pasajero';
+    final args = Modular.args.data as Map<String, dynamic>?;
+    final String modo = mode ?? args?['mode'] ?? 'pasajero';
     return Scaffold(
       appBar: AppBar(title: const Text('Mis Chats'), centerTitle: true),
       body: StreamBuilder<List<Map<String, dynamic>>>(
@@ -20,6 +23,28 @@ class ChatListPage extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline, size: 48, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No se pudo cargar los chats',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${snapshot.error}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -110,7 +135,7 @@ class ChatListPage extends StatelessWidget {
                   ],
                 ),
                 onTap: () {
-                  final route = mode == 'pasajero'
+                  final route = modo == 'pasajero'
                       ? '/home/chat/detail'
                       : '/home-taxista/chat/detail';
                   Modular.to.pushNamed(
@@ -121,6 +146,9 @@ class ChatListPage extends StatelessWidget {
                       'otherName': otherName,
                       'otherPhotoUrl': otherPhotoUrl,
                     },
+                    // En modo taxista ya no hay RouterOutlet en HomeTaxista,
+                    // así que el detalle debe abrirse en el navigator raíz.
+                    forRoot: modo != 'pasajero',
                   );
                 },
               );

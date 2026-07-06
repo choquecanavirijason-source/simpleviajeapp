@@ -26,6 +26,9 @@ class MapboxService implements MapService {
   PuntoFijoCircleManager? _puntoFijoMgr;
   TaxistasMarkersManager? _taxistasMgr;
   MapboxDirectionsClient? _dirClient;
+  // Bloquea syncs de taxistas durante el breve window post-reload de estilo
+  // para evitar llamadas nativas con managerId stale.
+  bool _annotationsReady = false;
 
   // Control de rutas para evitar parpadeo
   bool _routeLayerExists = false;
@@ -66,7 +69,7 @@ class MapboxService implements MapService {
 
   @override
   Future<void> sincronizarTaxistas(List<TaxistaMarkerData> taxistas) async {
-    if (_map == null) return;
+    if (_map == null || !_annotationsReady) return;
     _taxistasMgr ??= TaxistasMarkersManager(_map!);
     await _taxistasMgr!.sincronizar(taxistas);
   }
@@ -139,15 +142,21 @@ class MapboxService implements MapService {
 
       onStyleLoadedListener: (_) {
         // Style (re)loaded — native annotation managers were destroyed.
-        // Reset so next sincronizarTaxistas() creates fresh managers.
+        // Reset Dart state and block syncs briefly so any in-flight
+        // sincronizar() sees _disposed=true and exits before new ones start.
+        _annotationsReady = false;
         _taxistasMgr?.dispose();
         _taxistasMgr = null;
         _puntoFijoMgr = null;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _annotationsReady = true;
+        });
       },
 
       onMapCreated: (mapboxMap) async {
         // If the map widget was recreated, clear stale managers.
         if (_map != null) {
+          _annotationsReady = false;
           _taxistasMgr?.dispose();
           _taxistasMgr = null;
           _userCircleManager = null;
@@ -160,6 +169,8 @@ class MapboxService implements MapService {
           _userCircleManager ??= UserCircleManager(_map!);
           await _userCircleManager!.addUserCircle(lat, lng);
         }
+        // onStyleLoadedListener fires after this and sets _annotationsReady
+        // via its own 500ms delay — no need to set it here.
       },
 
       onCameraChangeListener: (_) async {

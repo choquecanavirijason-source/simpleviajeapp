@@ -37,6 +37,7 @@ class ModalInferior2Block extends StatelessWidget {
 
     // 👇 NUEVO: programación recibida desde MapaDestino
     this.programacion,
+    this.bottomPadding = 160,
   });
 
   final DraggableScrollableController controller;
@@ -64,6 +65,10 @@ class ModalInferior2Block extends StatelessWidget {
 
   // 👇 NUEVO: programación (puede ser null si no se programó)
   final ProgramacionSeleccion? programacion;
+
+  /// Espacio extra al final del scroll para que el contenido no quede
+  /// tapado por los botones fijos que están fuera del sheet.
+  final double bottomPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +159,10 @@ class ModalInferior2Block extends StatelessWidget {
                             : (puntoBCiudad ?? puntoBPais ?? '—')),
                   onTap: onDestinoTap,
                 ),
+
+                // Espacio para que el último ítem pueda scrollear
+                // por encima de los botones fijos del padre.
+                SizedBox(height: bottomPadding),
               ],
             );
           },

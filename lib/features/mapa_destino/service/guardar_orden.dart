@@ -33,6 +33,7 @@ Future<bool> pedirTaxiYGuardar({
   required String? puntoACalle,
   required String? puntoACiudad,
   required String? puntoAPais,
+  String? puntoADepartamento,
 
   // Destino (Punto B fijo)
   required double? bFixLat,
@@ -106,12 +107,18 @@ Future<bool> pedirTaxiYGuardar({
         },
       },
 
+      // Guardamos departamento y pais en raíz para que la lógica de comisión
+      // del taxista pueda leer el path correcto en Firestore.
+      if (puntoADepartamento != null) 'departamento': puntoADepartamento,
+      if (puntoAPais != null) 'pais': puntoAPais,
+
       'origen': {
         'lat': puntoALat,
         'lng': puntoALng,
         'calle': puntoACalle,
         'ciudad': puntoACiudad,
         'pais': puntoAPais,
+        if (puntoADepartamento != null) 'departamento': puntoADepartamento,
       },
 
       'destino': {

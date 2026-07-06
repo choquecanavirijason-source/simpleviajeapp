@@ -9,8 +9,6 @@ import 'package:flutter_modular/flutter_modular.dart';
 /// Gate de conectividad:
 /// - Si [usePage] = true => navega a /sinconexion con Modular.
 /// - Si [usePage] = false => muestra overlay (devuelve un widget "offline").
-///   Para overlay debes tener una pantalla offline disponible como widget
-///   (puedes crear un NoInternetPage y devolverlo en el build).
 class ConnectivityGate extends StatefulWidget {
   const ConnectivityGate({
     super.key,
@@ -29,27 +27,72 @@ class ConnectivityGate extends StatefulWidget {
   State<ConnectivityGate> createState() => _ConnectivityGateState();
 }
 
-class _ConnectivityGateState extends State<ConnectivityGate> {
+class _ConnectivityGateState extends State<ConnectivityGate>
+    with WidgetsBindingObserver {
   late final StreamSubscription<List<ConnectivityResult>> _sub;
   bool _online = true;
-  bool _pushed = false; // evita doble push
-  Timer? _timer;
+  bool _pushed = false;
+  bool _inForeground = true;
+  Timer? _periodicTimer;
+  // Debounce: absorbs momentary drops (background WiFi power-save, brief blips).
+  // The offline page is only shown after this window passes with no recovery.
+  Timer? _debounce;
+  static const _debounceDuration = Duration(seconds: 3);
+  // Grace period on app-resume: gives the OS time to reconnect WiFi before
+  // we run a check, preventing a false /sinconexion flash on every open.
+  static const _resumeGrace = Duration(seconds: 2);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
-    // 1) escucha cambios de conectividad (wifi/datos/none)
+    // Stream: debounce each change to swallow momentary drops.
     _sub = Connectivity().onConnectivityChanged.listen((list) {
-      if (widget.log) debugPrint('connectivity: $list');
-      _checkAndReact();
+      if (widget.log) debugPrint('connectivity change: $list');
+      _scheduleCheck();
     });
 
-    // 2) chequeo inicial tras el primer frame (Navigator/Router listos)
-    SchedulerBinding.instance.addPostFrameCallback((_) => _checkAndReact());
+    // Initial check after first frame (Navigator/Router ready).
+    SchedulerBinding.instance
+        .addPostFrameCallback((_) => _checkAndReact());
 
-    // 3) chequeo periódico por si el stream no emite
-    _timer = Timer.periodic(widget.checkInterval, (_) => _checkAndReact());
+    // Periodic fallback (only runs while app is in foreground).
+    _startPeriodicTimer();
+  }
+
+  void _startPeriodicTimer() {
+    _periodicTimer?.cancel();
+    _periodicTimer = Timer.periodic(widget.checkInterval, (_) {
+      if (_inForeground) _checkAndReact();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _inForeground = true;
+      // After resume, wait for the OS to restore WiFi before checking.
+      Future.delayed(_resumeGrace, () {
+        if (mounted) _checkAndReact();
+      });
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _inForeground = false;
+      // Cancel any pending debounce so a background drop never triggers push.
+      _debounce?.cancel();
+    }
+  }
+
+  // Called by the connectivity stream: waits [_debounceDuration] before
+  // actually reacting, so momentary drops are ignored.
+  void _scheduleCheck() {
+    _debounce?.cancel();
+    _debounce = Timer(_debounceDuration, () {
+      if (mounted && _inForeground) _checkAndReact();
+    });
   }
 
   Future<bool> _hasRealInternet() async {
@@ -66,8 +109,6 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
   Future<void> _checkAndReact() async {
     final list = await Connectivity().checkConnectivity();
     final hasTransport = list.any((r) => r != ConnectivityResult.none);
-
-    // si no hay transporte, es offline seguro; si hay, verificamos internet real
     final ok = hasTransport ? await _hasRealInternet() : false;
 
     if (!mounted) return;
@@ -76,25 +117,17 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
       setState(() => _online = ok);
     }
 
-    if (!widget.usePage) {
-      // Modo overlay: no navegamos, solo reconstruimos
-      return;
-    }
+    if (!widget.usePage) return;
 
-    // --- Manejo por navegación con Modular ---
     if (!_online && !_pushed) {
       _pushed = true;
-      if (widget.log) debugPrint('ConnectivityGate: Modular push /sinconexion');
-      // Empuja la ruta de tu pantalla "Sin conexión"
+      if (widget.log) debugPrint('ConnectivityGate: push /sinconexion');
       Modular.to.pushNamed('/sinconexion').then((_) {
-        // si el usuario vuelve manualmente, permitimos volver a empujar si falta internet
         _pushed = false;
       });
     } else if (_online && _pushed) {
-      // Si volvió internet, cerramos la pantalla si sigue arriba
       if (Modular.to.canPop()) {
-        if (widget.log)
-          debugPrint('ConnectivityGate: Modular pop /sinconexion');
+        if (widget.log) debugPrint('ConnectivityGate: pop /sinconexion');
         Modular.to.pop();
       }
       _pushed = false;
@@ -103,20 +136,16 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub.cancel();
-    _timer?.cancel();
+    _periodicTimer?.cancel();
+    _debounce?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.usePage) {
-      // en modo navegación, solo devolvemos el child
-      return widget.child;
-    }
-
-    // --- Modo overlay (si lo quieres sin navegación) ---
-    // TODO: reemplaza este Container por tu widget de "Sin conexión"
+    if (widget.usePage) return widget.child;
     if (_online) return widget.child;
     return Container(
       color: Colors.white,

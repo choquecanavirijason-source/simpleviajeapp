@@ -694,7 +694,7 @@ class _DetallesContentState extends State<_DetallesContent> {
               setState(() => _saldo += v); // 👈 refleja inmediatamente
 
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Saldo actualizado a Bs. ${v.toStringAsFixed(2)}')),
+                SnackBar(content: Text('Saldo actualizado a ARS ${v.toStringAsFixed(2)}')),
               );
             } catch (e) {
               debugPrint('❌ Error guardando saldo: $e');

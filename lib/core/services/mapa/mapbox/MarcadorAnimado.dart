@@ -159,7 +159,7 @@ const MarcadorAnimado(
   line: MarcadorLineType.linea1, // o linea2
   lineHeight: 50,
   tiempoTexto: "Duracion del viaje: 4 min",
-  textoSecundario: "Bs 12.50",
+  textoSecundario: "ARS 12.50",
   icono: WidgetCargandoPro2(size: 28, color: Colors.green),
   //icono: Icons.place, 
   iconColor: Colors.green,

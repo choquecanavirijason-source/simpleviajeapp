@@ -101,6 +101,7 @@ class _HistorialTaxistaPageState extends State<HistorialTaxistaPage>
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F6F9),
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,

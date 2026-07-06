@@ -1,15 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:buses2/shared/widgets/app_bar/app_bar.dart';
-import 'package:buses2/shared/widgets/cajas/caja_portada/caja_portada.dart';
 import 'package:buses2/shared/widgets/cajas/subir_foto/subir_foto.dart';
-import 'package:buses2/shared/widgets/casillas/casillas.dart';
 import 'package:buses2/shared/widgets/modal/modal.dart';
 import 'package:buses2/shared/widgets/botones/boton_small.dart';
 import 'package:buses2/shared/widgets/inputs/input_text.dart';
 import 'package:buses2/shared/widgets/notificacion/notificacion.dart';
 import 'package:buses2/shared/widgets/overlays/cargando.dart';
-import 'package:buses2/core/services/users.UID.generico/get_datos_genericos.dart';
 import 'package:buses2/core/services/users.UID.generico/save_datos_genericos.dart';
 import 'package:buses2/core/services/users.UID.generico/save_fotos_generico.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,34 +20,42 @@ class PerfilConductorPage extends StatefulWidget {
 }
 
 class _PerfilConductorPageState extends State<PerfilConductorPage> {
-  static const double _avatarSize = 110;
-  static const double _headerHeight = 90;
+  static const double _avatarRadius = 54.0;
+  static const double _headerHeight = 155.0;
+  static const Color _green = Color(0xFF1B5E20);
+  static const Color _greenMid = Color(0xFF2E7D32);
+  static const Color _greenLight = Color(0xFF43A047);
+
   final _nameFormKey = GlobalKey<FormState>();
-  String _name = 'Nombre del Conductor';
   final _telFormKey = GlobalKey<FormState>();
-  String _telefono = 'No definido';
-  String _correo = 'No definido';
+
+  String _name = '';
+  String _telefono = '';
+  String _correo = '';
   bool _verificado = false;
   String? _fotoUrl;
   File? _fotoLocal;
-
-  // Datos del servicio
   String? _servicioSeleccionado;
   String? _departamentoServicio;
   String? _logoServicio;
-
-  // Datos de puntuación
   double? _promedioEstrellas;
   int? _numeroResenias;
 
   @override
   void initState() {
     super.initState();
+    // Pre-populate from Firebase Auth synchronously — eliminates the 1-second flicker.
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _name = user.displayName ?? '';
+      _correo = user.email ?? '';
+      _fotoUrl = user.photoURL;
+    }
     _cargarDatos();
   }
 
   Future<void> _editarNombre() async {
-    final _nameCtrl = TextEditingController(text: _name);
+    final nameCtrl = TextEditingController(text: _name);
 
     showAppModal(
       context,
@@ -60,7 +65,7 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
         child: Column(
           children: [
             TextInput2(
-              controller: _nameCtrl,
+              controller: nameCtrl,
               placeholder: 'Ingresa tu nombre',
               prefixIcon: Icons.person,
               validator: (v) {
@@ -79,8 +84,7 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
           label: 'Guardar',
           onPressed: () async {
             if (!(_nameFormKey.currentState?.validate() ?? false)) return;
-
-            final nuevo = _nameCtrl.text.trim();
+            final nuevo = nameCtrl.text.trim();
             try {
               await SaveDatosGenericos.guardarCampoEnMap(
                 absoluteDocPath: 'taxistas/{uid}',
@@ -88,10 +92,8 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
                 nombreCampo: 'nombre',
                 valor: nuevo,
               );
-
               if (!mounted) return;
               setState(() => _name = nuevo);
-
               Navigator.of(context).pop();
               notificacion(
                 context,
@@ -119,7 +121,7 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
   }
 
   Future<void> _editarTelefono() async {
-    final _telefonoCtrl = TextEditingController(text: _telefono);
+    final telCtrl = TextEditingController(text: _telefono);
 
     showAppModal(
       context,
@@ -129,17 +131,12 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
         child: Column(
           children: [
             TextInput2(
-              controller: _telefonoCtrl,
+              controller: telCtrl,
               label: 'Número de teléfono',
               placeholder: 'Ingresa tu número',
               prefixIcon: Icons.phone,
-              // Si tu TextInput2 lo soporta, descomenta:
-              // keyboardType: TextInputType.phone,
               validator: (v) {
-                final t = (v ?? '').replaceAll(
-                  RegExp(r'\D'),
-                  '',
-                ); // solo dígitos
+                final t = (v ?? '').replaceAll(RegExp(r'\D'), '');
                 if (t.isEmpty) return 'Requerido';
                 if (t.length != 8) return 'Debe tener 8 dígitos';
                 return null;
@@ -153,26 +150,17 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
         BotonSmall(
           label: 'Guardar',
           onPressed: () async {
-            // 1) validar
             if (!(_telFormKey.currentState?.validate() ?? false)) return;
-
-            // 2) normalizar a solo dígitos
-            final nuevoTel = _telefonoCtrl.text.replaceAll(RegExp(r'\D'), '');
-
+            final nuevoTel = telCtrl.text.replaceAll(RegExp(r'\D'), '');
             try {
-              // 3) guardar en Firestore
               await SaveDatosGenericos.guardarCampoEnMap(
                 absoluteDocPath: 'taxistas/{uid}',
                 nombreMap: 'perfilTaxista',
                 nombreCampo: 'telefono',
                 valor: nuevoTel,
               );
-
               if (!mounted) return;
-
-              // 4) refrescar UI
               setState(() => _telefono = nuevoTel);
-
               Navigator.of(context).pop();
               notificacion(
                 context,
@@ -204,16 +192,12 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Cargar datos del perfil del taxista completo
       final docTaxista = await FirebaseFirestore.instance
           .collection('taxistas')
           .doc(user.uid)
           .get();
 
-      if (!docTaxista.exists) {
-        debugPrint('Documento de taxista no encontrado');
-        return;
-      }
+      if (!docTaxista.exists) return;
 
       final dataTaxista = docTaxista.data();
       final perfilTaxista =
@@ -221,29 +205,22 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
       final documentosVehiculo =
           dataTaxista?['documentosVehiculo'] as Map<String, dynamic>?;
 
-      // Obtener correo de Firebase Auth
       final correoAuth = user.email;
-
-      // Obtener datos de servicio
-      String? servicio = documentosVehiculo?['servicioSeleccionado'] as String?;
-      String? departamento =
+      final servicio = documentosVehiculo?['servicioSeleccionado'] as String?;
+      final departamento =
           documentosVehiculo?['departamentoServicio'] as String?;
 
-      // Obtener datos de puntuación
       double? promedio;
       int? numResenias;
-
       final promedioRaw = dataTaxista?['promedioEstrellas'];
       if (promedioRaw != null) {
         promedio = (promedioRaw is num) ? promedioRaw.toDouble() : null;
       }
-
       final reseniasRaw = dataTaxista?['numeroResenias'];
       if (reseniasRaw != null) {
         numResenias = (reseniasRaw is num) ? reseniasRaw.toInt() : null;
       }
 
-      // Cargar logo del servicio desde Firestore
       String? logoUrl;
       if (servicio != null && departamento != null) {
         try {
@@ -253,10 +230,10 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
               .collection('tarifas')
               .doc(departamento)
               .get();
-
           if (docTarifa.exists) {
             final tarifaData = docTarifa.data();
-            final servicioData = tarifaData?[servicio] as Map<String, dynamic>?;
+            final servicioData =
+                tarifaData?[servicio] as Map<String, dynamic>?;
             logoUrl = servicioData?['logo'] as String?;
           }
         } catch (e) {
@@ -264,7 +241,6 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
         }
       }
 
-      // Obtener estado de verificación desde empresa
       bool verificado = false;
       try {
         final docEmpresa = await FirebaseFirestore.instance
@@ -273,7 +249,6 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
             .collection('trabajadores')
             .doc(user.uid)
             .get();
-
         if (docEmpresa.exists) {
           final documentos =
               docEmpresa.data()?['documentos'] as Map<String, dynamic>?;
@@ -289,16 +264,12 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
       setState(() {
         _name = perfilTaxista?['nombre'] ?? _name;
         _telefono = perfilTaxista?['telefono'] ?? _telefono;
-        _correo = perfilTaxista?['correo'] ?? correoAuth ?? 'No definido';
-        _fotoUrl = perfilTaxista?['fotoPerfil'];
+        _correo = perfilTaxista?['correo'] ?? correoAuth ?? _correo;
+        _fotoUrl = perfilTaxista?['fotoPerfil'] ?? _fotoUrl;
         _verificado = verificado;
-
-        // Actualizar datos de servicio
         _servicioSeleccionado = servicio;
         _departamentoServicio = departamento;
         _logoServicio = logoUrl;
-
-        // Actualizar datos de puntuación
         _promedioEstrellas = promedio;
         _numeroResenias = numResenias;
       });
@@ -307,250 +278,402 @@ class _PerfilConductorPageState extends State<PerfilConductorPage> {
     }
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final double overlap = _avatarSize / 2; // cuánto se solapa el avatar
-    final double stackHeight =
-        _headerHeight + overlap; // alto total del header compuesto
+    final stackHeight = _headerHeight + _avatarRadius + 4.0;
+
     return Scaffold(
-      appBar: const AppBar1(
+      backgroundColor: const Color(0xFFF4F6F9),
+      appBar: AppBar1(
         titleSize: TitleSize.big,
         titulo: 'Perfil del Conductor',
         leftAction: LeftAction.back,
         iconoIzquierda: Icons.arrow_back,
-        iconoDerecha: Icons.edit,
+        iconoDerecha: Icons.edit_rounded,
+        onTapDerecha: _editarNombre,
       ),
       body: ListView(
-        padding: EdgeInsets.zero, // sin espacio entre AppBar y contenido
+        padding: EdgeInsets.zero,
         children: [
+          // ── Gradient header + centered overlapping avatar ──
           SizedBox(
-            height: stackHeight, // <-- aquí va stackHeight (SIN guion bajo)
+            height: stackHeight,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // Portada verde
-                CajaPortada(
+                Container(
                   height: _headerHeight,
-                  color: const Color(
-                    0xFF43A047,
-                  ), // Verde consistente con la app
-                  showVerified: _verificado,
-                  verifiedText: _verificado ? 'Verificado' : 'No Verificado',
-                  verifiedIcon: _verificado
-                      ? Icons.verified
-                      : Icons.error_outline,
-                  verifiedGradient: LinearGradient(
-                    colors: _verificado
-                        ? [const Color(0xFF43A047), const Color(0xFF66BB6A)]
-                        : [Colors.orange.shade600, Colors.orange.shade400],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [_green, _greenMid, _greenLight],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                   ),
-                  verifiedShadowColor: _verificado
-                      ? const Color(0xFF43A047)
-                      : Colors.orange,
-                  verifiedForegroundColor: Colors.white, // Color icono y texto
+                  child: Align(
+                    alignment: const Alignment(0, -0.3),
+                    child: Icon(
+                      Icons.directions_car_rounded,
+                      size: 80,
+                      color: Colors.white.withValues(alpha: 0.07),
+                    ),
+                  ),
                 ),
-
-                // Avatar pegado a la izquierda, solapando mitad
                 Positioned(
-                  left: 16, // o center/right según quieras
-                  //bottom: -55,      // cuánto se superpone sobre la portada
-                  top: _headerHeight - (_avatarSize / 2), // 90 - 55 = 35
-                  child: SubirFotoWidget2(
-                    alignment: Alignment.centerLeft,
-                    badgePosition: CameraBadgePosition.bottomRight, // opcional
-                    badgeColor: const Color(0xFF43A047),
-                    icono: Icons.camera_alt,
-                    texto: "Foto de Perfil",
-                    initialFile: _fotoLocal, // <- img local
-                    initialUrl: _fotoUrl, // <- img nube
-                    onPicked: (file) async {
-                      setState(() {
-                        _fotoLocal = file;
-                        _fotoUrl = null; // limpia url mientras sube
-                      });
-
-                      // Subir foto inmediatamente
-                      try {
-                        Cargando.show(context, message: 'Subiendo foto...');
-
-                        final nuevaUrl = await SaveFotoStorage.subir(
-                          file: file,
-                          path: 'taxistas/{uid}/perfilTaxista/foto.jpg',
-                          replace: true,
-                        );
-
-                        // Guardar URL en Firestore
-                        await SaveDatosGenericos.guardarCampoEnMap(
-                          absoluteDocPath: 'taxistas/{uid}',
-                          nombreMap: 'perfilTaxista',
-                          nombreCampo: 'fotoPerfil',
-                          valor: nuevaUrl,
-                        );
-
-                        if (!mounted) return;
-                        Cargando.hide();
-
+                  left: 0,
+                  right: 0,
+                  top: _headerHeight - _avatarRadius,
+                  child: Center(
+                    child: SubirFotoWidget2(
+                      alignment: Alignment.center,
+                      badgePosition: CameraBadgePosition.bottomRight,
+                      badgeColor: _greenLight,
+                      icono: Icons.camera_alt,
+                      texto: 'Foto de Perfil',
+                      initialFile: _fotoLocal,
+                      initialUrl: _fotoUrl,
+                      onPicked: (file) async {
                         setState(() {
-                          _fotoUrl = nuevaUrl;
-                          _fotoLocal = null;
+                          _fotoLocal = file;
+                          _fotoUrl = null;
                         });
-
-                        notificacion(
-                          context,
-                          title: 'Foto actualizada',
-                          subtitle:
-                              'Tu foto de perfil se actualizó correctamente',
-                          seconds: 4,
-                          icon: Icons.check_rounded,
-                          color: Colors.green,
-                        );
-                      } catch (e) {
-                        if (!mounted) return;
-                        Cargando.hide();
-                        notificacion(
-                          context,
-                          title: 'Error',
-                          subtitle: 'No se pudo subir la foto: $e',
-                          seconds: 6,
-                          icon: Icons.error_outline,
-                          color: Colors.red,
-                        );
-                      }
-                    },
-                  ),
-                ),
-                // ===== Nombre + correo en el "rincón vacío" derecho =====
-                // Nota: SubirFotoWidget2 usa size=110; 16 (margen izq) + 110 (avatar) + 12 (separación)
-                Positioned(
-                  left:
-                      16 +
-                      _avatarSize +
-                      12, // margen + ancho avatar + separación
-                  right: 16,
-                  // bottom: -40, // ajusta fino si lo quieres un poco más arriba/abajo
-                  top: _headerHeight - 0, // ajusta fino si quieres
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Nombre con lápiz (editable)
-                      GestureDetector(
-                        onTap: _editarNombre,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _name.isEmpty ? '---' : _name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            IconButton(
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
-                              iconSize: 18,
-                              color: Colors.black,
-                              tooltip: 'Editar nombre',
-                              onPressed: _editarNombre,
-                              icon: const Icon(Icons.edit),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _correo == 'No definido' ? 'Sin correo' : _correo,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ],
+                        try {
+                          Cargando.show(context, message: 'Subiendo foto...');
+                          final nuevaUrl = await SaveFotoStorage.subir(
+                            file: file,
+                            path: 'taxistas/{uid}/perfilTaxista/foto.jpg',
+                            replace: true,
+                          );
+                          await SaveDatosGenericos.guardarCampoEnMap(
+                            absoluteDocPath: 'taxistas/{uid}',
+                            nombreMap: 'perfilTaxista',
+                            nombreCampo: 'fotoPerfil',
+                            valor: nuevaUrl,
+                          );
+                          if (!mounted) return;
+                          Cargando.hide();
+                          setState(() {
+                            _fotoUrl = nuevaUrl;
+                            _fotoLocal = null;
+                          });
+                          notificacion(
+                            context,
+                            title: 'Foto actualizada',
+                            subtitle:
+                                'Tu foto de perfil se actualizó correctamente',
+                            seconds: 4,
+                            icon: Icons.check_rounded,
+                            color: Colors.green,
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          Cargando.hide();
+                          notificacion(
+                            context,
+                            title: 'Error',
+                            subtitle: 'No se pudo subir la foto: $e',
+                            seconds: 6,
+                            icon: Icons.error_outline,
+                            color: Colors.red,
+                          );
+                        }
+                      },
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          // Compensa el solape para que el contenido no “choque”
-          //const SizedBox(height: 45),
-          // Contenido existente con padding de 16
+
+          // ── Name + email + chips ──
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
             child: Column(
               children: [
-                const Divider(height: 0),
-                // líneas “pegadas” al tile
-                const Divider(height: 1, thickness: 0.8),
-                Casillas(
-                  title: 'Teléfono',
-                  subtitle: _telefono,
-                  leading: Casillas.blueCircleIcon(
-                    Icons.phone,
-                    backgroundColor: const Color(0xFF43A047),
-                  ),
-                  trailing: const Icon(Icons.edit, size: 18),
-                  onTap: _editarTelefono,
-                  showTopDivider: true, // línea arriba
-                  showBottomDivider: false, // sin línea abajo
-                ),
-                Casillas(
-                  title: 'Correo',
-                  subtitle: _correo,
-                  leading: Casillas.blueCircleIcon(
-                    Icons.email,
-                    backgroundColor: const Color(0xFF43A047),
-                  ),
-                  onTap: () {}, // Solo lectura
-                  showTopDivider: true,
-                  showBottomDivider: false,
-                ),
-                if (_servicioSeleccionado != null)
-                  Casillas(
-                    title: 'Servicio',
-                    subtitle: _servicioSeleccionado!,
-                    leading: _logoServicio != null && _logoServicio!.isNotEmpty
-                        ? CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: NetworkImage(_logoServicio!),
-                          )
-                        : Casillas.blueCircleIcon(
-                            Icons.local_taxi,
-                            backgroundColor: const Color(0xFF43A047),
+                GestureDetector(
+                  onTap: _editarNombre,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _name.isEmpty ? 'Conductor' : _name,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A1A2E),
                           ),
-                    onTap: () {}, // Solo lectura
-                    showTopDivider: true,
-                    showBottomDivider: false,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.edit_rounded,
+                        size: 15,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ],
                   ),
-                Casillas(
-                  title: 'Puntuación',
-                  subtitle: _promedioEstrellas != null
-                      ? '${_promedioEstrellas!.toStringAsFixed(1)} ★ (${_numeroResenias ?? 0} ${(_numeroResenias ?? 0) == 1 ? 'opinión' : 'opiniones'})'
-                      : '5.0 ★ (Sin opiniones)',
-                  leading: Casillas.blueCircleIcon(
-                    Icons.star,
-                    backgroundColor: const Color(0xFF43A047),
-                  ),
-                  onTap: () {},
-                  showTopDivider: true,
-                  showBottomDivider: false,
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  _correo.isEmpty ? 'Sin correo' : _correo,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    color: Color(0xFF64748B),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [_ratingChip(), const SizedBox(width: 8), _verifiedChip()],
+                ),
+              ],
+            ),
+          ),
+
+          // ── Info cards ──
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionLabel('INFORMACIÓN DE CONTACTO'),
+                const SizedBox(height: 8),
+                _card([
+                  _tile(
+                    icon: Icons.phone_rounded,
+                    label: 'Teléfono',
+                    value: _telefono.isEmpty ? 'Sin número' : _telefono,
+                    onTap: _editarTelefono,
+                    editable: true,
+                    divider: true,
+                  ),
+                  _tile(
+                    icon: Icons.email_rounded,
+                    label: 'Correo electrónico',
+                    value: _correo.isEmpty ? 'Sin correo' : _correo,
+                  ),
+                ]),
+                if (_servicioSeleccionado != null) ...[
+                  const SizedBox(height: 20),
+                  _sectionLabel('SERVICIO'),
+                  const SizedBox(height: 8),
+                  _card([
+                    _tile(
+                      icon: Icons.local_taxi_rounded,
+                      label: 'Tipo de servicio',
+                      value: _servicioSeleccionado!,
+                      customLeading:
+                          _logoServicio != null && _logoServicio!.isNotEmpty
+                              ? CircleAvatar(
+                                  radius: 19,
+                                  backgroundImage:
+                                      NetworkImage(_logoServicio!),
+                                )
+                              : null,
+                    ),
+                  ]),
+                ],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // ── Chip helpers ───────────────────────────────────────────────────────────
+
+  Widget _ratingChip() {
+    final hasRating = _promedioEstrellas != null && (_numeroResenias ?? 0) > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: hasRating ? Colors.amber.shade50 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: hasRating ? Colors.amber.shade200 : Colors.grey.shade300,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.star_rounded,
+            size: 15,
+            color: hasRating ? Colors.amber.shade700 : Colors.grey.shade400,
+          ),
+          const SizedBox(width: 4),
+          if (hasRating) ...[
+            Text(
+              _promedioEstrellas!.toStringAsFixed(1),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.amber.shade800,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '($_numeroResenias ${_numeroResenias == 1 ? 'opinión' : 'opiniones'})',
+              style: TextStyle(fontSize: 12, color: Colors.amber.shade700),
+            ),
+          ] else
+            Text(
+              'Sin calificaciones',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade500,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _verifiedChip() => Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: _verificado ? Colors.green.shade50 : Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: _verificado
+                ? Colors.green.shade200
+                : Colors.orange.shade200,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _verificado
+                  ? Icons.verified_rounded
+                  : Icons.pending_rounded,
+              size: 14,
+              color: _verificado
+                  ? Colors.green.shade700
+                  : Colors.orange.shade700,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _verificado ? 'Verificado' : 'Pendiente',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: _verificado
+                    ? Colors.green.shade800
+                    : Colors.orange.shade800,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  // ── Layout helpers ─────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF94A3B8),
+          letterSpacing: 1.0,
+        ),
+      );
+
+  Widget _card(List<Widget> children) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(children: children),
+      );
+
+  Widget _tile({
+    required IconData icon,
+    required String label,
+    required String value,
+    VoidCallback? onTap,
+    bool editable = false,
+    bool divider = false,
+    Widget? customLeading,
+  }) {
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          customLeading ??
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: _green.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: _green),
+              ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF94A3B8),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (editable)
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: Colors.grey.shade400,
+            ),
+        ],
+      ),
+    );
+
+    return Column(
+      children: [
+        onTap != null
+            ? InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: content,
+              )
+            : content,
+        if (divider)
+          Divider(height: 1, indent: 68, color: Colors.grey.shade100),
+      ],
     );
   }
 }

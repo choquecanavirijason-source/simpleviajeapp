@@ -36,6 +36,7 @@ Future<bool> pedirTaxiYGuardarProgramado({
   required String? puntoACalle,
   required String? puntoACiudad,
   required String? puntoAPais,
+  String? puntoADepartamento,
 
   // Destino fijo (Punto B)
   required double? bFixLat,
@@ -96,11 +97,15 @@ Future<bool> pedirTaxiYGuardarProgramado({
         'total': (desgloseTotal ?? precioEstimado),
       },
 
+      if (puntoADepartamento != null) 'departamento': puntoADepartamento,
+      if (puntoAPais != null) 'pais': puntoAPais,
+
       'origen': {
         'lat': puntoALat,
         'lng': puntoALng,
         'calle': puntoACalle,
         'ciudad': puntoACiudad,
+        if (puntoADepartamento != null) 'departamento': puntoADepartamento,
         'pais': puntoAPais,
       },
 

@@ -36,6 +36,11 @@ class _MenuLateralState extends State<MenuLateral> {
   @override
   void initState() {
     super.initState();
+    // Pre-populate from Firebase Auth immediately to avoid flicker on first frame.
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
+      _fotoPerfilPasajero = user.photoURL;
+    }
     _cargarFotoPerfilPasajero();
   }
 
@@ -159,7 +164,8 @@ class _MenuLateralState extends State<MenuLateral> {
   @override
   Widget build(BuildContext context) {
     return MenuNavegacion1(
-      colorBase: Colors.green,
+      colorBase: const Color(0xFF1B5E20),
+      colorSecundario: const Color(0xFF2E7D32),
       urlFotoPerfil: _obtenerFotoPerfil(),
       userName: _obtenerPrimerNombre(),
 

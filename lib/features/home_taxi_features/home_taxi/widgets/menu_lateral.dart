@@ -28,6 +28,18 @@ class _TaxiDrawerState extends State<TaxiDrawer> {
   @override
   void initState() {
     super.initState();
+    // Pre-populate from Firebase Auth immediately so the drawer renders
+    // with real data on first frame — eliminates the 1-second flicker.
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final authName = user.displayName;
+      if (authName != null && authName.isNotEmpty) {
+        _nombreTaxista = 'Bienvenido ${authName.split(' ').first}';
+      }
+      if (user.photoURL != null && user.photoURL!.isNotEmpty) {
+        _fotoTaxista = user.photoURL;
+      }
+    }
     _cargarDatosTaxista();
   }
 
@@ -207,6 +219,8 @@ class _TaxiDrawerState extends State<TaxiDrawer> {
     return MenuNavegacion1(
       urlFotoPerfil: _fotoTaxista,
       userName: _nombreTaxista,
+      colorBase: const Color(0xFF1B5E20),
+      colorSecundario: const Color(0xFF2E7D32),
       itemsMenu: [
         DrawerItem(
           icon: Icons.home,
@@ -234,10 +248,13 @@ class _TaxiDrawerState extends State<TaxiDrawer> {
         DrawerItem(
           icon: Icons.chat,
           label: 'Chats',
-          onTap: () => Modular.to.pushNamed(
-            '/home-taxista/chats_taxista',
-            arguments: {'mode': 'taxista'},
-          ),
+          onTap: () {
+            Navigator.pop(context);
+            Modular.to.navigate(
+              '/home-taxista/chats_taxista',
+              arguments: {'mode': 'taxista'},
+            );
+          },
         ),
 
         // ✅ (Contáctanos eliminado)

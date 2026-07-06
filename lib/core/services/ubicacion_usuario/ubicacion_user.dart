@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:buses2/core/services/config/api_keys.dart';
 
 class UbicacionUsuario {
   /// Obtiene las coordenadas del usuario en formato `{ 'lat': 0.0, 'lng': 0.0 }`.
@@ -81,9 +80,14 @@ Future<void> obtenerSoloCoordenadas() async {
     double lat,
     double lng,
   ) async {
+    final token = dotenv.env['MAPBOX_TOKEN'] ?? '';
+    if (token.isEmpty) {
+      print('❌ MAPBOX_TOKEN no configurado en .env');
+      return null;
+    }
     try {
       final url = Uri.parse(
-        'https://api.mapbox.com/geocoding/v5/mapbox.places/$lng,$lat.json?access_token=${ApiKeys.mapbox}&language=es',
+        'https://api.mapbox.com/geocoding/v5/mapbox.places/$lng,$lat.json?access_token=$token&language=es&limit=1',
       );
 
       final response = await http.get(url);
@@ -92,7 +96,6 @@ Future<void> obtenerSoloCoordenadas() async {
         final data = json.decode(response.body);
 
         if (data['features'] != null && data['features'].isNotEmpty) {
-          // Tomamos la primera coincidencia (la más precisa)
           return data['features'][0]['place_name'];
         } else {
           print('⚠️ No se encontraron resultados para esas coordenadas.');

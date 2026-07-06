@@ -8,8 +8,11 @@ class MenuNavegacion1 extends StatelessWidget {
   final List<Widget> botonesInferiores;
   final VoidCallback? onTapFotoPerfil;
 
-  /// Color base (verde)
+  /// Color principal del encabezado
   final Color colorBase;
+
+  /// Color secundario del degradado (por defecto verde claro)
+  final Color? colorSecundario;
 
   const MenuNavegacion1({
     super.key,
@@ -17,31 +20,33 @@ class MenuNavegacion1 extends StatelessWidget {
     required this.itemsMenu,
     this.botonesInferiores = const [],
     this.colorBase = Colors.green,
+    this.colorSecundario,
     this.onTapFotoPerfil,
     this.userName,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color greenDark = colorBase; // Verde principal
-    final Color greenLight = Colors.green.shade200; // Verde claro profesional
+    final Color primary = colorBase;
+    final Color secondary = colorSecundario ?? Colors.green.shade200;
 
     return Drawer(
+      backgroundColor: const Color(0xFFF8F9FA),
       child: Column(
         children: [
-          // ✅ Encabezado con degradado
+          // Encabezado con degradado
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 60, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 56, 20, 28),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [greenDark, greenLight],
+                colors: [primary, secondary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.18),
+                  color: primary.withValues(alpha: 0.35),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -50,88 +55,111 @@ class MenuNavegacion1 extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ Avatar redondeado moderno
+                // Avatar
                 InkWell(
                   onTap: onTapFotoPerfil,
                   borderRadius: BorderRadius.circular(50),
-                  child: CircleAvatar(
-                    radius: 38,
-                    backgroundColor: Colors.white.withOpacity(0.9),
-                    child: ClipOval(
-                      child: SizedBox(
-                        width: 76,
-                        height: 76,
-                        child:
-                            (urlFotoPerfil != null && urlFotoPerfil!.isNotEmpty)
-                            ? Image.network(
-                                urlFotoPerfil!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        width: 2.5,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 38,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      child: ClipOval(
+                        child: SizedBox(
+                          width: 76,
+                          height: 76,
+                          child: (urlFotoPerfil != null &&
+                                  urlFotoPerfil!.isNotEmpty)
+                              ? Image.network(
+                                  urlFotoPerfil!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.person,
+                                    size: 42,
+                                    color: Colors.white70,
+                                  ),
+                                )
+                              : const Icon(
                                   Icons.person,
                                   size: 42,
-                                  color: Colors.black54,
+                                  color: Colors.white70,
                                 ),
-                              )
-                            : const Icon(
-                                Icons.person,
-                                size: 42,
-                                color: Colors.black54,
-                              ),
+                        ),
                       ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
 
-                // ✅ Nombre del menú o frase personalizada
                 Text(
                   userName ?? 'Bienvenido',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
                   ),
                 ),
 
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   'Tu seguridad, nuestro camino',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
 
-          // ✅ Lista de opciones con estilo moderno
+          // Lista de opciones
           Expanded(
             child: ListView(
-              padding: EdgeInsets.zero,
+              padding: const EdgeInsets.symmetric(vertical: 8),
               children: itemsMenu.map((item) {
-                return ListTile(
-                  leading: Icon(item.icon, color: greenDark),
-                  title: Text(
-                    item.label,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.2,
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 2,
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: primary.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Icon(item.icon, color: primary, size: 19),
                     ),
+                    title: Text(
+                      item.label,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: Colors.grey.shade400,
+                    ),
+                    onTap: item.onTap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
-                  trailing: const Icon(
-                    Icons.chevron_right,
-                    size: 22,
-                    color: Colors.black54,
-                  ),
-                  onTap: item.onTap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                 );
               }).toList(),
             ),

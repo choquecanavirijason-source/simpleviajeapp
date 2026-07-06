@@ -225,6 +225,46 @@ class _HistorialViajesPageState extends State<HistorialViajesPage>
     }
   }
 
+  // ===== Abrir chat con el conductor =====
+  void _abrirChat(Trip trip) async {
+    final chatId = trip.chatId ?? '';
+    if (chatId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay chat disponible para este viaje.'),
+        ),
+      );
+      return;
+    }
+
+    String? nombre;
+    String? foto;
+    final uidTaxista = trip.uidTaxista ?? '';
+    if (uidTaxista.isNotEmpty) {
+      try {
+        final datos = await _trip_service.obtenerTaxistaAsignado(uidTaxista);
+        final n = [datos?['nombre'], datos?['apellido']]
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .join(' ');
+        nombre = n.isNotEmpty ? n : null;
+        foto = datos?['fotoPerfil'] as String?;
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+
+    Modular.to.pushNamed(
+      '/home/chat/detail',
+      arguments: {
+        'chatId': chatId,
+        'otherUid': uidTaxista.isNotEmpty ? uidTaxista : null,
+        'otherName': nombre,
+        'otherPhotoUrl': foto,
+      },
+    );
+  }
+
   // ===== Ver detalles del conductor =====
   void _verDetallesViaje(Trip trip) async {
     // al presionar en el boton ver detalle llama a esta funcion la cual debe navegar a una pagina con los detalles del viaje
@@ -350,6 +390,7 @@ class _HistorialViajesPageState extends State<HistorialViajesPage>
                           'Cuando tengas solicitudes o viajes en curso aparecerán aquí.',
                       onOfertas: _goToViajeSolicitado, // <- aquí navega
                       onCancelar: _cancelarViaje,
+                      onChatConductor: _abrirChat,
                     ),
 
                     // ===== Completados =====

@@ -712,7 +712,7 @@ TramoSection.inputs(
              'Ej.: ≤10 km → 40; >10 y ≤20 km → 60.',
   rowTitlePrefix: 'Tramo',
   leftLabel: 'Desde (km)',
-  rightLabel: 'Precio (Bs.)',
+  rightLabel: 'Precio (ARS)',
   leftPlaceholder: '0.00',
   rightPlaceholder: '0.00',
   helperBottom: Text(

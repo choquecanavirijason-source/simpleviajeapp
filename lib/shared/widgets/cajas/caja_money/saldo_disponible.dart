@@ -3,7 +3,7 @@ import 'package:buses2/shared/widgets/cajas/caja_fecha_ini_fin/caja_fecha_ini_fi
 
 // Caja modular para mostrar el saldo disponible
 class SaldoDisponible extends StatelessWidget {
-  final String moneda; // Ej: "Bs."
+  final String moneda; // Ej: "ARS"
   final String monto; // Ej: "150.00"
 
   // ====== control del selector de fechas ======
@@ -111,7 +111,7 @@ class SaldoDisponible extends StatelessWidget {
 
 /* Ejemplo de uso:
 SaldoDisponible(
-  moneda: "Bs.",
+  moneda: "ARS",
   monto: saldoDisponible,
   mostrarSelectorFechas: true,         // <- lo muestras
   onFechaIniChanged: (d) {

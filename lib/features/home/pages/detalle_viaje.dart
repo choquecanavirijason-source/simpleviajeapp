@@ -5,7 +5,7 @@ import 'package:buses2/shared/widgets/app_bar/app_bar.dart';
 // Importamos los widgets actualizados con el nuevo estilo
 import '../widgets/detalle_viaje/driver_card.dart';
 import '../widgets/detalle_viaje/route_section.dart';
-import '../widgets/detalle_viaje/summary_card.dart'; // Asumo que SummaryCard también lo ajustaste o usarás la versión anterior
+import '../widgets/detalle_viaje/summary_card.dart';
 
 class DetallesViaje extends StatelessWidget {
   const DetallesViaje({super.key});
