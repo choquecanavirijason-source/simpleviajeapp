@@ -3,6 +3,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart' as gsi;
+import 'package:buses2/shared/theme/app_colors.dart';
 
 class ButtonsSection extends StatefulWidget {
   const ButtonsSection({Key? key}) : super(key: key);
@@ -113,11 +114,11 @@ class _ButtonsSectionState extends State<ButtonsSection> {
           width: double.infinity,
           height: 56,
           decoration: BoxDecoration(
-            color: const Color(0xFF34A853),
+            color: AppColors.navy,
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF34A853).withOpacity(0.4),
+                color: AppColors.navy.withValues(alpha: 0.4),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),

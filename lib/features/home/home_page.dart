@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:buses2/shared/widgets/nav/floating_bottom_nav.dart';
 import 'package:buses2/shared/state/drawer_visibility.dart';
-import 'package:buses2/shared/state/search_destino_trigger.dart';
 import 'package:buses2/shared/theme/app_colors.dart';
+import 'package:buses2/shared/services/abrir_busqueda_destino.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -15,30 +15,31 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   bool _hideNav = false;
+  final _destinoController = TextEditingController();
 
+  // El nav solo tiene sentido sobre las 4 secciones raíz. Cualquier otra
+  // pantalla (perfil, detalles de viaje, lugares guardados, etc.) es un
+  // "detalle" que, por convención de UX, va a pantalla completa sin tab
+  // bar persistente.
   void _syncIndexWithPath() {
     final p = Modular.to.path;
-    if (p.contains('/home/perfil')) {
-      setState(() => _hideNav = true);
-      return;
-    }
-    if (_hideNav) setState(() => _hideNav = false);
-
-    if (p.endsWith('/home') || p.endsWith('/home/')) {
-      setState(() => _currentIndex = 0);
-    } else if (p.contains('/home/viajes')) {
-      setState(() => _currentIndex = 0);
+    int? index;
+    if (p.endsWith('/home') ||
+        p.endsWith('/home/') ||
+        p.contains('/home/viajes')) {
+      index = 0;
     } else if (p.contains('/home/historial')) {
-      setState(() => _currentIndex = 1);
+      index = 1;
     } else if (p.contains('/home/lugares') &&
         !p.contains('/home/lugares-guardados')) {
-      setState(() => _currentIndex = 2);
+      index = 2;
     } else if (p.contains('/home/chats')) {
-      setState(() => _currentIndex = 3);
-    } else {
-      // Rutas sin tab propia (detalles, etc.): ningún ítem activo.
-      setState(() => _currentIndex = -1);
+      index = 3;
     }
+    setState(() {
+      _currentIndex = index ?? -1;
+      _hideNav = index == null;
+    });
   }
 
   @override
@@ -60,6 +61,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     Modular.to.removeListener(_syncIndexWithPath);
+    _destinoController.dispose();
     super.dispose();
   }
 
@@ -82,16 +84,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openSearch() {
-    final wasOnViajes = _currentIndex == 0;
-    _onTap(0);
-    if (wasOnViajes) {
-      SearchDestinoTrigger.fire();
-    } else {
-      // Da tiempo a que la pestaña de Viajes se monte y quede escuchando.
-      Future.delayed(const Duration(milliseconds: 250), () {
-        SearchDestinoTrigger.fire();
-      });
-    }
+    // Abre el modal directo, igual que la barra de búsqueda del home,
+    // sin cambiar de pestaña ni navegar hacia Viajes primero.
+    abrirBusquedaDestino(context, _destinoController);
   }
 
   static const _navItems = [

@@ -579,7 +579,9 @@ class _QRRecargaWidget extends StatelessWidget {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
-                Expanded(child: Text('QR guardado en galería (álbum Tropical)')),
+                Expanded(
+                  child: Text('QR guardado en galería (álbum Tropical)'),
+                ),
               ],
             ),
             backgroundColor: Colors.green,
@@ -664,10 +666,7 @@ class _BotonMostrarQR extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.green.shade700,
-                ),
+                Icon(Icons.chevron_right, color: Colors.green.shade700),
               ],
             ),
           ),
@@ -1170,7 +1169,11 @@ class _FiltrosAvanzados extends StatelessWidget {
       ),
       child: Row(
         children: [
-          cell(label: 'Día', icon: Icons.today_rounded, value: FiltroTiempo.dia),
+          cell(
+            label: 'Día',
+            icon: Icons.today_rounded,
+            value: FiltroTiempo.dia,
+          ),
           cell(
             label: 'Semana',
             icon: Icons.date_range_rounded,
@@ -1742,13 +1745,18 @@ class _TxnTileRecarga extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            (recarga.monto >= 0 ? '+' : '') +
-                f.format(recarga.monto).replaceFirst('ARS ', ''),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
+          Flexible(
+            child: Text(
+              (recarga.monto >= 0 ? '+' : '') +
+                  f.format(recarga.monto).replaceFirst('ARS ', ''),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
             ),
           ),
         ],
@@ -1898,22 +1906,29 @@ class _TxnTileComision extends StatelessWidget {
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '-${f.format(comision.montoComision).replaceFirst('ARS ', '')}',
-                    style: TextStyle(
-                      color: Colors.red.shade700,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '-${f.format(comision.montoComision).replaceFirst('ARS ', '')}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Comisión',
-                    style: TextStyle(color: Colors.red.shade600, fontSize: 10),
-                  ),
-                ],
+                    Text(
+                      'Comisión',
+                      style: TextStyle(
+                        color: Colors.red.shade600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

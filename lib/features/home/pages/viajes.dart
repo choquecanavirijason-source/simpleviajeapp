@@ -17,7 +17,6 @@ import 'package:buses2/shared/theme/app_radius.dart';
 import 'package:buses2/shared/widgets/cards/app_card.dart';
 import 'package:buses2/shared/widgets/badges/pill_status_badge.dart';
 import 'package:buses2/shared/state/drawer_visibility.dart';
-import 'package:buses2/shared/state/search_destino_trigger.dart';
 
 // Firebase
 import 'package:firebase_auth/firebase_auth.dart';
@@ -108,13 +107,10 @@ class _ViajesPageState extends State<ViajesPage>
     }
   }
 
-  void _onSearchPing() => _abrirBusquedaDestino();
-
   @override
   void initState() {
     super.initState();
     mostrarUbicacionUsuario();
-    SearchDestinoTrigger.ping.addListener(_onSearchPing);
 
     // Inicializar animaciones
     _animationController = AnimationController(
@@ -143,7 +139,6 @@ class _ViajesPageState extends State<ViajesPage>
 
   @override
   void dispose() {
-    SearchDestinoTrigger.ping.removeListener(_onSearchPing);
     _destinoController.dispose();
     controller.dispose();
     _animationController.dispose();
@@ -201,7 +196,7 @@ class _ViajesPageState extends State<ViajesPage>
                     // Ofertas en tiempo real
                     _buildOfertasTaxistasEnTiempoReal(),
 
-                    const SizedBox(height: 110),
+                    const SizedBox(height: 150),
                   ],
                 ),
               ),
