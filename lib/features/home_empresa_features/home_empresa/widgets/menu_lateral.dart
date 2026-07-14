@@ -6,6 +6,8 @@ import 'package:buses2/shared/widgets/menu_navegation/menu_nav_item.dart';
 import 'package:buses2/shared/widgets/botones/boton.dart';
 import 'package:buses2/shared/services/login_google/login_google_service.dart';
 import 'package:buses2/shared/services/save_traer_firebase/save_datos_genericos.dart';
+import 'package:buses2/shared/theme/app_colors.dart';
+import 'package:buses2/shared/widgets/botones/logout_button.dart';
 
 class EmpresaDrawer extends StatelessWidget {
   final String? fotoPerfilUrl;
@@ -37,6 +39,8 @@ class EmpresaDrawer extends StatelessWidget {
     return MenuNavegacion1(
       urlFotoPerfil: fotoPerfilUrl,
       userName: nombreMostrado,
+      colorBase: AppColors.navy,
+      colorSecundario: AppColors.navyLight,
       itemsMenu: [
         DrawerItem(
           icon: Icons.home_rounded,
@@ -77,7 +81,7 @@ class EmpresaDrawer extends StatelessWidget {
           height: _kBtnHeight,
           child: Boton1(
             label: 'Modo Pasajero',
-            color: BotonColor.color1, // verde
+            color: BotonColor.color2, // azul
             borde: BotonBorde.borde1,
             iconoIzquierdo: Icons.person_rounded,
             iconoDerecho: Icons.arrow_forward_rounded,
@@ -118,7 +122,7 @@ class EmpresaDrawer extends StatelessWidget {
 
         SizedBox(
           height: _kBtnHeight,
-          child: _LogoutButton(
+          child: LogoutButton(
             onPressed: () async {
               try {
                 if (Navigator.of(context).canPop()) {
@@ -157,43 +161,6 @@ class _SeccionLabel extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-}
-
-/// Botón "Cerrar sesión" estilizado en rojo (BotonColor no incluye rojo,
-/// así que usamos un OutlinedButton con la misma forma redondeada).
-class _LogoutButton extends StatelessWidget {
-  const _LogoutButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    const rojo = Color(0xFFE53935);
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.logout_rounded, color: rojo, size: 20),
-        label: const Text(
-          'Cerrar sesión',
-          style: TextStyle(
-            color: rojo,
-            fontWeight: FontWeight.w800,
-            fontSize: 15,
-            letterSpacing: 0.2,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          side: const BorderSide(color: rojo, width: 1.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50),
-          ),
-          backgroundColor: rojo.withOpacity(0.05),
         ),
       ),
     );

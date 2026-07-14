@@ -6,11 +6,13 @@ import 'package:buses2/features/home_taxi_features/home_taxi/services/DriverOffe
 import 'package:buses2/features/home_taxi_features/home_taxi/services/orders_listener.dart';
 import 'package:buses2/shared/widgets/menu_navegation/menu_nav.dart';
 import 'package:buses2/shared/widgets/menu_navegation/menu_nav_item.dart';
-import 'package:buses2/shared/widgets/botones/boton.dart';
 import 'package:buses2/shared/services/login_google/login_google_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:buses2/features/home/services/passenger_offers_listener_service.dart';
 import '../services/driver_offer_accepted_listener_service.dart';
+import 'package:buses2/shared/theme/app_colors.dart';
+import 'package:buses2/shared/widgets/botones/logout_button.dart';
+import 'package:buses2/shared/widgets/botones/quick_mode_button.dart';
 
 class TaxiDrawer extends StatefulWidget {
   final String? fotoPerfilUrl;
@@ -219,8 +221,13 @@ class _TaxiDrawerState extends State<TaxiDrawer> {
     return MenuNavegacion1(
       urlFotoPerfil: _fotoTaxista,
       userName: _nombreTaxista,
-      colorBase: const Color(0xFF1B5E20),
-      colorSecundario: const Color(0xFF2E7D32),
+      colorBase: AppColors.navy,
+      colorSecundario: AppColors.navyLight,
+      headerAction: QuickModeButton(
+        icon: Icons.person_rounded,
+        label: 'Modo Pasajero',
+        onTap: () => _cambiarAModoPasajero(context),
+      ),
       itemsMenu: [
         DrawerItem(
           icon: Icons.home,
@@ -260,15 +267,6 @@ class _TaxiDrawerState extends State<TaxiDrawer> {
         // ✅ (Contáctanos eliminado)
       ],
       botonesInferiores: [
-        Boton1(
-          label: 'Modo Pasajero',
-          color: BotonColor.color1,
-          borde: BotonBorde.borde1,
-          iconoIzquierdo: Icons.person,
-          iconoDerecho: Icons.arrow_forward,
-          onPressed: () => _cambiarAModoPasajero(context),
-        ),
-        const SizedBox(height: 10),
         // Boton1(
         //   label: 'Modo Empresa',
         //   color: BotonColor.color1,
@@ -280,12 +278,7 @@ class _TaxiDrawerState extends State<TaxiDrawer> {
         //   },
         // ),
         const SizedBox(height: 10),
-        Boton1(
-          label: 'Cerrar sesión',
-          color: BotonColor.color1,
-          borde: BotonBorde.borde1,
-          iconoIzquierdo: Icons.logout,
-          iconoDerecho: Icons.logout,
+        LogoutButton(
           onPressed: () async {
             try {
               // Cierra el Drawer primero (para evitar UI "rota")

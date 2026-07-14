@@ -13,6 +13,7 @@ import 'widgets/menu_lateral.dart';
 import 'pages/solicitudes_taxista.dart';
 import 'pages/historial_taxista.dart';
 import 'pages/billetera_taxista.dart';
+import 'package:buses2/shared/widgets/nav/floating_bottom_nav.dart';
 
 class HomeTaxista extends StatefulWidget {
   const HomeTaxista({Key? key}) : super(key: key);
@@ -623,135 +624,30 @@ class _HomeTaxistaState extends State<HomeTaxista> {
           ],
         ),
 
-        bottomNavigationBar: _FloatingNavBar(
-          currentIndex: _currentIndex,
-          onTap: _onTap,
-          items: const [
-            _NavItemData(icon: Icons.list_alt_rounded, label: 'Viajes'),
-            _NavItemData(icon: Icons.bar_chart_rounded, label: 'Historial'),
-            _NavItemData(
-              icon: Icons.account_balance_wallet_rounded,
-              label: 'Billetera',
-            ),
-            _NavItemData(icon: Icons.chat_bubble_rounded, label: 'Chats'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Modelo simple para los items de la nav flotante.
-class _NavItemData {
-  final IconData icon;
-  final String label;
-  const _NavItemData({required this.icon, required this.label});
-}
-
-class _FloatingNavBar extends StatelessWidget {
-  const _FloatingNavBar({
-    required this.currentIndex,
-    required this.onTap,
-    required this.items,
-  });
-
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-  final List<_NavItemData> items;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + bottomInset),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.13),
-              blurRadius: 24,
-              spreadRadius: 0,
-              offset: const Offset(0, 6),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(5),
-        child: Row(
-          children: List.generate(items.length, (i) {
-            return Expanded(
-              child: _FloatingNavCell(
-                data: items[i],
-                active: i == currentIndex,
-                onTap: () => onTap(i),
+        bottomNavigationBar: Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            0,
+            24,
+            16 + MediaQuery.of(context).viewPadding.bottom,
+          ),
+          child: FloatingBottomNav(
+            floating: true,
+            currentIndex: _currentIndex,
+            onTap: _onTap,
+            items: const [
+              FloatingNavItem(icon: Icons.list_alt_rounded, label: 'Viajes'),
+              FloatingNavItem(
+                icon: Icons.bar_chart_rounded,
+                label: 'Historial',
               ),
-            );
-          }),
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingNavCell extends StatelessWidget {
-  const _FloatingNavCell({
-    required this.data,
-    required this.active,
-    required this.onTap,
-  });
-
-  final _NavItemData data;
-  final bool active;
-  final VoidCallback onTap;
-
-  static const _activeGreen = Color(0xFF1B5E20);
-  static const _inactiveColor = Color(0xFF94A3B8);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? _activeGreen : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedScale(
-              scale: active ? 1.08 : 1.0,
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              child: Icon(
-                data.icon,
-                size: 21,
-                color: active ? Colors.white : _inactiveColor,
+              FloatingNavItem(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Billetera',
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              data.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10.5,
-                height: 1.1,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? Colors.white : _inactiveColor,
-              ),
-            ),
-          ],
+              FloatingNavItem(icon: Icons.chat_bubble_rounded, label: 'Chats'),
+            ],
+          ),
         ),
       ),
     );

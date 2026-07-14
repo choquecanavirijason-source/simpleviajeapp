@@ -12,6 +12,12 @@ import 'package:buses2/core/services/ubicacion_usuario/ubicacion_user.dart';
 import 'package:buses2/features/home/widgets/modal_inferior_AyB.dart';
 import 'package:buses2/core/utils/particionarDireccion.dart';
 import 'package:buses2/shared/widgets/ofertas/oferta_builder.dart';
+import 'package:buses2/shared/theme/app_colors.dart' as theme;
+import 'package:buses2/shared/theme/app_radius.dart';
+import 'package:buses2/shared/widgets/cards/app_card.dart';
+import 'package:buses2/shared/widgets/badges/pill_status_badge.dart';
+import 'package:buses2/shared/state/drawer_visibility.dart';
+import 'package:buses2/shared/state/search_destino_trigger.dart';
 
 // Firebase
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,11 +27,12 @@ import 'package:buses2/features/chats/service/firestore_profiles.dart';
 import 'dart:async';
 
 // ===== Diseño: paleta y utilidades =====
+// Alias locales sobre la paleta compartida (Modern Clean Light UI).
 class AppColors {
-  static const Color primaryBlue = Color(0xFF00359D);
-  static const Color successGreen = Color(0xFF2CAC3F);
-  static const Color backgroundLight = Color(0xFFF8F9FA);
-  static const Color surfaceWhite = Colors.white;
+  static const Color primaryBlue = theme.AppColors.navy;
+  static const Color successGreen = theme.AppColors.success;
+  static const Color backgroundLight = theme.AppColors.background;
+  static const Color surfaceWhite = theme.AppColors.cardBackground;
 }
 
 class ViajesPage extends StatefulWidget {
@@ -80,10 +87,34 @@ class _ViajesPageState extends State<ViajesPage>
     }
   }
 
+  Future<void> _abrirBusquedaDestino() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await mostrarUbicacionUsuario();
+      if (!mounted) return;
+      await ModalInferiorAyB.mostrar(
+        context: context,
+        destinoController: _destinoController,
+        lat: latitud,
+        lng: longitud,
+        calle: calle,
+        ciudad: ciudad,
+        pais: pais,
+        departamento: departamento,
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _onSearchPing() => _abrirBusquedaDestino();
+
   @override
   void initState() {
     super.initState();
     mostrarUbicacionUsuario();
+    SearchDestinoTrigger.ping.addListener(_onSearchPing);
 
     // Inicializar animaciones
     _animationController = AnimationController(
@@ -112,6 +143,7 @@ class _ViajesPageState extends State<ViajesPage>
 
   @override
   void dispose() {
+    SearchDestinoTrigger.ping.removeListener(_onSearchPing);
     _destinoController.dispose();
     controller.dispose();
     _animationController.dispose();
@@ -132,6 +164,7 @@ class _ViajesPageState extends State<ViajesPage>
         direccion: direccionGuardada,
       ),
       drawer: MenuLateral(auth: auth),
+      onDrawerChanged: (isOpen) => DrawerVisibility.isOpen.value = isOpen,
       body: Stack(
         children: [
           FadeTransition(
@@ -143,21 +176,11 @@ class _ViajesPageState extends State<ViajesPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Banner desde Firestore (en tarjeta elegante)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceWhite,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
+                    // Banner desde Firestore (hero carrusel, sin cambios de lógica)
+                    AppCard(
+                      padding: EdgeInsets.zero,
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                         child: BannerPublicidad(
                           streamBanners: _bannerService.streamBannersActivos(),
                           autoPlay: true,
@@ -170,24 +193,7 @@ class _ViajesPageState extends State<ViajesPage>
                     // ¿A dónde vamos? (hero search bar)
                     _HeroSearchBar(
                       loading: _loading,
-                      onTap: () async {
-                        setState(() => _loading = true);
-                        try {
-                          await mostrarUbicacionUsuario();
-                          await ModalInferiorAyB.mostrar(
-                            context: context,
-                            destinoController: _destinoController,
-                            lat: latitud,
-                            lng: longitud,
-                            calle: calle,
-                            ciudad: ciudad,
-                            pais: pais,
-                            departamento: departamento,
-                          );
-                        } finally {
-                          if (mounted) setState(() => _loading = false);
-                        }
-                      },
+                      onTap: _abrirBusquedaDestino,
                     ),
 
                     const SizedBox(height: 20),
@@ -195,7 +201,7 @@ class _ViajesPageState extends State<ViajesPage>
                     // Ofertas en tiempo real
                     _buildOfertasTaxistasEnTiempoReal(),
 
-                    const SizedBox(height: 120),
+                    const SizedBox(height: 110),
                   ],
                 ),
               ),
@@ -260,77 +266,48 @@ class _ViajesPageState extends State<ViajesPage>
           builder: (context, ordenesSnapshot) {
             final ordenes = ordenesSnapshot.data ?? [];
 
-            return Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+            return SizedBox(
               width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SectionHeader(
-                    icon: Icons.local_taxi_rounded,
-                    color: AppColors.primaryBlue,
-                    title: _mostrarOrdenesProgramadas
-                        ? 'Ofertas programadas'
-                        : 'Ofertas de drivers',
-                    trailing: ordenes.isNotEmpty
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.successGreen.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.successGreen,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
+              child: AppCard(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionHeader(
+                      icon: Icons.local_taxi_rounded,
+                      color: AppColors.primaryBlue,
+                      title: _mostrarOrdenesProgramadas
+                          ? 'Ofertas programadas'
+                          : 'Ofertas de drivers',
+                      trailing: ordenes.isNotEmpty
+                          ? PillStatusBadge(
+                              label:
                                   '${ordenes.length} activa${ordenes.length == 1 ? "" : "s"}',
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.successGreen,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : null,
-                  ),
-                  if (hayProgramadas) ...[
-                    const SizedBox(height: 12),
-                    _buildToggleButton(),
-                  ],
-                  const SizedBox(height: 14),
-
-                  if (ordenes.isEmpty)
-                    _buildEmptyState()
-                  else
-                    Column(
-                      children: ordenes.map((ordenDoc) {
-                        return _BloqueOfertasDeOrden(
-                          ordenDoc: ordenDoc,
-                          esProgramado: _mostrarOrdenesProgramadas,
-                          onAceptarOferta: _aceptarOferta,
-                        );
-                      }).toList(),
+                              type: PillStatusType.success,
+                              icon: Icons.circle,
+                            )
+                          : null,
                     ),
-                ],
+                    if (hayProgramadas) ...[
+                      const SizedBox(height: 12),
+                      _buildToggleButton(),
+                    ],
+                    const SizedBox(height: 14),
+
+                    if (ordenes.isEmpty)
+                      _buildEmptyState()
+                    else
+                      Column(
+                        children: ordenes.map((ordenDoc) {
+                          return _BloqueOfertasDeOrden(
+                            ordenDoc: ordenDoc,
+                            esProgramado: _mostrarOrdenesProgramadas,
+                            onAceptarOferta: _aceptarOferta,
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                ),
               ),
             );
           },
@@ -455,7 +432,7 @@ class _ViajesPageState extends State<ViajesPage>
             label: 'Normales',
             icon: Icons.directions_car_rounded,
             esProgramadasOption: false,
-            activeColor: AppColors.successGreen,
+            activeColor: AppColors.primaryBlue,
           ),
           seg(
             label: 'Programadas',
@@ -559,7 +536,7 @@ class _ViajesPageState extends State<ViajesPage>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Oferta aceptada'),
-            backgroundColor: Color(0xFF43A047),
+            backgroundColor: AppColors.successGreen,
           ),
         );
       }
@@ -705,19 +682,19 @@ class _HeroSearchBar extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: loading ? null : onTap,
-        splashColor: AppColors.successGreen.withOpacity(0.1),
-        highlightColor: AppColors.successGreen.withOpacity(0.05),
+        splashColor: AppColors.primaryBlue.withOpacity(0.1),
+        highlightColor: AppColors.primaryBlue.withOpacity(0.05),
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.successGreen.withOpacity(0.25),
+              color: AppColors.primaryBlue.withOpacity(0.25),
               width: 1.4,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.successGreen.withOpacity(0.08),
+                color: AppColors.primaryBlue.withOpacity(0.08),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -729,12 +706,12 @@ class _HeroSearchBar extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.successGreen.withOpacity(0.12),
+                  color: AppColors.primaryBlue.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.search_rounded,
-                  color: AppColors.successGreen,
+                  color: AppColors.primaryBlue,
                   size: 22,
                 ),
               ),
@@ -774,14 +751,14 @@ class _HeroSearchBar extends StatelessWidget {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    color: AppColors.successGreen,
+                    color: AppColors.primaryBlue,
                   ),
                 )
               else
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: AppColors.successGreen,
+                    color: AppColors.primaryBlue,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(

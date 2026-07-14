@@ -15,6 +15,9 @@ import 'package:buses2/shared/widgets/menu_navegation/menu_nav_item.dart';
 import 'package:buses2/shared/widgets/botones/boton.dart';
 import 'package:buses2/features/home/services/passenger_offers_listener_service.dart';
 import 'package:buses2/features/home_taxi_features/home_taxi/services/driver_offer_accepted_listener_service.dart';
+import 'package:buses2/shared/theme/app_colors.dart';
+import 'package:buses2/shared/widgets/botones/logout_button.dart';
+import 'package:buses2/shared/widgets/botones/quick_mode_button.dart';
 
 class MenuLateral extends StatefulWidget {
   final dynamic auth; // puede ser LoginService o LoginGoogleService
@@ -141,6 +144,30 @@ class _MenuLateralState extends State<MenuLateral> {
     }
   }
 
+  Future<void> _cambiarAModoTaxista() async {
+    // Actualizar modo en Firestore y SharedPreferences
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('pasajeros')
+            .doc(user.uid)
+            .update({'modo': 'taxista'});
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('modo', 'taxista');
+
+      // Cambiar listeners: parar pasajero, iniciar driver
+      await PassengerOffersListenerService.instance.stopListening();
+      await DriverOfferAcceptedListenerService.instance.startListening();
+      await DriverOfferCounterOfferListenerService.instance.startListening();
+    } catch (e) {
+      debugPrint('❌ Error al cambiar modo a taxista: $e');
+    }
+    Modular.to.pushNamed('/startup-taxista');
+  }
+
   Future<void> _cerrarSesion() async {
     try {
       if (Navigator.of(context).canPop()) Navigator.of(context).pop();
@@ -164,10 +191,15 @@ class _MenuLateralState extends State<MenuLateral> {
   @override
   Widget build(BuildContext context) {
     return MenuNavegacion1(
-      colorBase: const Color(0xFF1B5E20),
-      colorSecundario: const Color(0xFF2E7D32),
+      colorBase: AppColors.navy,
+      colorSecundario: AppColors.navyLight,
       urlFotoPerfil: _obtenerFotoPerfil(),
       userName: _obtenerPrimerNombre(),
+      headerAction: QuickModeButton(
+        icon: Icons.local_taxi_rounded,
+        label: 'Modo Driver',
+        onTap: _cambiarAModoTaxista,
+      ),
 
       // 👇 Conecta el TapBurst al avatar (solo muestra el botón)
       // onTapFotoPerfil: _handleFotoPerfilTap,
@@ -230,7 +262,7 @@ class _MenuLateralState extends State<MenuLateral> {
                 label: 'Modo Empresa',
                 iconoIzquierdo: Icons.business,
                 iconoDerecho: Icons.arrow_forward_ios,
-                color: BotonColor.color1,
+                color: BotonColor.color2,
                 borde: BotonBorde.borde1,
                 onPressed:
                     _abrirLoginYEntrarEmpresa, // abre modal y luego navega si ok
@@ -240,49 +272,10 @@ class _MenuLateralState extends State<MenuLateral> {
         ),
         const SizedBox(height: 10),
 
-        Boton1(
-          label: 'Modo Driver',
-          iconoIzquierdo: Icons.local_taxi,
-          iconoDerecho: Icons.arrow_forward_ios,
-          color: BotonColor.color1,
-          borde: BotonBorde.borde1,
-          onPressed: () async {
-            // Actualizar modo en Firestore y SharedPreferences
-            try {
-              final user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                await FirebaseFirestore.instance
-                    .collection('pasajeros')
-                    .doc(user.uid)
-                    .update({'modo': 'taxista'});
-              }
-
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('modo', 'taxista');
-
-              // Cambiar listeners: parar pasajero, iniciar driver
-              await PassengerOffersListenerService.instance.stopListening();
-              await DriverOfferAcceptedListenerService.instance
-                  .startListening();
-              await DriverOfferCounterOfferListenerService.instance
-                  .startListening();
-            } catch (e) {
-              debugPrint('❌ Error al cambiar modo a taxista: $e');
-            }
-            Modular.to.pushNamed('/startup-taxista');
-          },
-        ),
-        const SizedBox(height: 10),
-
-        Boton1(
-          label: 'Cerrar sesión',
-          color: BotonColor.color1,
-          borde: BotonBorde.borde1,
-          iconoIzquierdo: Icons.logout,
-          iconoDerecho: Icons.logout,
-          onPressed: _cerrarSesion,
-        ),
+        LogoutButton(onPressed: _cerrarSesion),
       ],
     );
   }
 }
+
+/// Acceso rápido a "Modo Driver" en la esquina superior del drawer.

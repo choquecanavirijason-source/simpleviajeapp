@@ -6,6 +6,21 @@ class AppColors {
   static const Color primary = Color(0xFF008080); // Verde azulado
   static const Color secondary = Color(0xFF004D4D); // Verde más oscuro
 
+  // *** MODERN CLEAN LIGHT UI (nueva paleta, en migración progresiva) *** //
+  // Fondo global de la app: gris casi imperceptible
+  static const Color background = Color(0xFFF8F9FA);
+  // Fondo de tarjetas (cards)
+  static const Color cardBackground = Colors.white;
+  // Azul: color de acento principal del nuevo diseño
+  static const Color navy = Color(0xFF0D57D6);
+  // Azul oscuro: fondo del bottom nav
+  static const Color navyDark = Color(0xFF083480);
+  // Azul claro: degradados/acentos sobre navy
+  static const Color navyLight = Color(0xFF6292E4);
+  // Texto/iconos claros sobre fondos navy
+  static const Color onNavy = Colors.white;
+  // *** FIN MODERN CLEAN LIGHT UI *** //
+
   // Para los bordes
   static const Color borderColor = Colors.grey;
   static const Color borderColorRed = Colors.red;
@@ -82,7 +97,7 @@ class AppColors {
   static const Color fondoPantalla = Colors.white;
 
   // Estabdares
-  static const Color success = Color(0xFF4CAF50); // éxito
+  static const Color success = Color(0xFF019468); // éxito
   static const Color warning = Color(0xFFFFC107); // advertencia
   static const Color error = Color(0xFFF44336); // error
 

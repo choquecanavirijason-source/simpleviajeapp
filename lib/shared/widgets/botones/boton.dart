@@ -1,5 +1,6 @@
 // import 'package:buses2/shared/widgets/botones/boton.dart';
 import 'package:flutter/material.dart';
+import 'package:buses2/shared/theme/app_colors.dart';
 
 enum BotonColor { color1, color2, color3 }
 
@@ -26,11 +27,11 @@ class Boton1 extends StatelessWidget {
   Color _getColor() {
     switch (color) {
       case BotonColor.color1:
-        return Colors.green;
+        return AppColors.success;
       case BotonColor.color2:
-        return Colors.blue;
+        return AppColors.navy;
       case BotonColor.color3:
-        return Color(0xFF4CB050);
+        return AppColors.success;
     }
   }
 

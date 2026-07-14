@@ -6,7 +6,6 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:buses2/shared/widgets/botones/btn_fijo_abajo.dart';
 import 'package:buses2/shared/widgets/botones/boton.dart';
 import 'package:buses2/shared/widgets/app_bar/app_bar.dart';
 import 'package:buses2/shared/widgets/overlays/cargando.dart';
@@ -305,16 +304,15 @@ class _PerfilPasajeroPageState extends State<PerfilPasajeroPage> {
           Modular.to.pushNamedAndRemoveUntil('/home/', (_) => false);
           return false;
         },
-        child: ScaffoldConBottom(
+        child: Scaffold(
           appBar: AppBar1(
             titleSize: TitleSize.big,
             titulo: 'Perfil Pasajero',
             leftAction: LeftAction.back,
             iconoIzquierda: Icons.arrow_back,
           ),
-          scrollBody: true,
-          body: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
             child: Form(
               key: _formKey,
               child: Column(
@@ -395,16 +393,17 @@ class _PerfilPasajeroPageState extends State<PerfilPasajeroPage> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 28),
+                  Boton1(
+                    label: 'GUARDAR Y VOLVER AL INICIO',
+                    color: BotonColor.color1,
+                    borde: BotonBorde.borde1,
+                    iconoDerecho: Icons.arrow_forward_ios,
+                    onPressed: _guardar,
+                  ),
                 ],
               ),
             ),
-          ),
-          btnFijoAbajo: Boton1(
-            label: 'GUARDAR Y VOLVER AL INICIO',
-            color: BotonColor.color1,
-            borde: BotonBorde.borde1,
-            iconoDerecho: Icons.arrow_forward_ios,
-            onPressed: _guardar,
           ),
         ),
       ),

@@ -8,6 +8,7 @@ import 'package:buses2/features/home_empresa_features/home_empresa/widgets/menu_
 import 'package:buses2/shared/widgets/app_bar/app_bar.dart';
 
 import 'package:buses2/features/home_empresa_features/home_empresa/services/dashboard_servicios.dart';
+import 'package:buses2/shared/theme/app_colors.dart';
 
 class HomeEmpresa extends StatefulWidget {
   const HomeEmpresa({super.key});
@@ -95,7 +96,7 @@ class _HomeEmpresaState extends State<HomeEmpresa> {
       initialDate: _day,
       minDate: DateTime(DateTime.now().year - 5, 1, 1),
       title: 'Elegir día',
-      primaryColor: const Color(0xFF22C55E),
+      primaryColor: AppColors.navy,
     );
     if (!mounted) return;
     if (picked != null) {
@@ -130,15 +131,6 @@ class _HomeEmpresaState extends State<HomeEmpresa> {
       drawer: const EmpresaDrawer(
         fotoPerfilUrl: 'https://tu-servidor.com/foto.jpg',
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'debugOpenDrawer',
-        backgroundColor: Colors.orange,
-        onPressed: () {
-          debugPrint('🟠 [HomeEmpresa] FAB DEBUG — abriendo drawer');
-          _scaffoldKey.currentState?.openDrawer();
-        },
-        child: const Icon(Icons.menu_open),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Column(
@@ -152,7 +144,7 @@ class _HomeEmpresaState extends State<HomeEmpresa> {
                   icon: const Icon(Icons.calendar_month),
                   label: Text(dayLabel),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
+                    backgroundColor: AppColors.navy,
                     foregroundColor: Colors.white,
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(

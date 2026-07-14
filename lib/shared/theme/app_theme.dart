@@ -13,7 +13,7 @@ class AppTheme {
         .light, // Define que el tema es claro (los colores base se ajustan a tema claro)
     primaryColor: AppColors.primary, // Aplica a botones, barras, etc.
     scaffoldBackgroundColor:
-        AppColors.fondoPantalla, // Color de fondo de pantalla
+        AppColors.background, // Fondo global Modern Clean Light UI (#F8F9FA)
     //** AppBar Global */
     appBarTheme: AppBarTheme(
       // Tema para todas las AppBars de la app

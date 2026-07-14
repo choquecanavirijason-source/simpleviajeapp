@@ -15,6 +15,38 @@
       },
       "oauth_client": [
         {
+          "client_id": "637935360345-5vsvascchps02g4h3k9a3hihi5tatrc4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simpleviaje.app",
+            "certificate_hash": "858d118bdf710fc0056176b27cb43c224b5667f8"
+          }
+        },
+        {
+          "client_id": "637935360345-8i8r365qs8c6f2n8q7qp634qokgusou5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simpleviaje.app",
+            "certificate_hash": "e9c7e664f468b85735c639e05714cca29877828b"
+          }
+        },
+        {
+          "client_id": "637935360345-98sidudff35u621pu7jp3e9muals5ope.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simpleviaje.app",
+            "certificate_hash": "492aff8a55a67e24957de2f85230694ec5d470b2"
+          }
+        },
+        {
+          "client_id": "637935360345-ndn0pnj655llm3rilbpms8vneesgq96g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simpleviaje.app",
+            "certificate_hash": "efcedd051ae1bd9fa6d33b1fd5e75f3811235bd7"
+          }
+        },
+        {
           "client_id": "637935360345-5qlbfmenqhn6r83lasmmg8jcdf6ioit7.apps.googleusercontent.com",
           "client_type": 3
         }

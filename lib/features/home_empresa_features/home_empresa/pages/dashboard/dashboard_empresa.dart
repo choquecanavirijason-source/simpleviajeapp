@@ -1,6 +1,7 @@
 // lib/features/home_empresa_features/home_empresa/pages/dashboard/dashboard_empresa.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:buses2/shared/widgets/cards/app_card.dart';
 
 /// Modelo simple que consume la UI
 class TripCounts {
@@ -185,65 +186,61 @@ class _StatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     const double itemHeight = 130;
 
-    return Card(
-      elevation: 1.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: loading
-            ? const SizedBox(
-                height: 96,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            : GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: items.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  mainAxisExtent: itemHeight,
-                ),
-                itemBuilder: (_, i) {
-                  final it = items[i];
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer.withOpacity(0.35),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 12,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(it.icon, size: 22, color: colorScheme.primary),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${it.value}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          it.label,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+    return AppCard(
+      padding: const EdgeInsets.all(12),
+      child: loading
+          ? const SizedBox(
+              height: 96,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                mainAxisExtent: itemHeight,
               ),
-      ),
+              itemBuilder: (_, i) {
+                final it = items[i];
+                return Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withOpacity(0.35),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 12,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(it.icon, size: 22, color: colorScheme.primary),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${it.value}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        it.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }
