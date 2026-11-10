@@ -4,14 +4,38 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+/// Datos del taxi más cercano para dibujarlo en su dirección real.
+class RadarTaxiCercano {
+  final double distanciaKm;
+
+  /// Rumbo desde el pasajero hacia el taxi (0 = norte/arriba, 90 = este).
+  final double rumboGrados;
+  final String? servicio;
+
+  const RadarTaxiCercano({
+    required this.distanciaKm,
+    required this.rumboGrados,
+    this.servicio,
+  });
+
+  /// Texto corto de distancia: "350 m" o "1.2 km".
+  String get distanciaTexto => distanciaKm < 1
+      ? '${(distanciaKm * 1000).round()} m'
+      : '${distanciaKm.toStringAsFixed(1)} km';
+}
+
 class RadarBuscando extends StatefulWidget {
   final int conductoresCercanos;
   final List<String> serviciosCercanos;
+
+  /// Taxi más cercano; si no es null se dibuja resaltado en su dirección.
+  final RadarTaxiCercano? masCercano;
 
   const RadarBuscando({
     super.key,
     this.conductoresCercanos = 0,
     this.serviciosCercanos = const [],
+    this.masCercano,
   });
 
   @override
@@ -33,6 +57,7 @@ class _RadarBuscandoState extends State<RadarBuscando>
   static const double _center = _radarSize / 2; // 115
   static const double _iconRadius = 84; // distancia desde el centro
   static const double _iconBadgeSize = 38;
+  static const double _nearestBadgeSize = 48;
 
   final List<AnimationController> _ctrls = [];
 
@@ -66,6 +91,17 @@ class _RadarBuscandoState extends State<RadarBuscando>
   }
 
   // Deriva tipos únicos de vehículo a partir de la lista de servicios
+  static _TipoVehiculo _tipoDe(String? servicio) {
+    final l = (servicio ?? '').toLowerCase();
+    if (l.contains('moto')) {
+      return const _TipoVehiculo(Icons.two_wheeler_rounded, Color(0xFFF59E0B));
+    }
+    if (l.contains('confort') || l.contains('premium') || l.contains('vip')) {
+      return const _TipoVehiculo(Icons.drive_eta_rounded, Color(0xFF8B5CF6));
+    }
+    return const _TipoVehiculo(Icons.directions_car_filled_rounded, _colorBase);
+  }
+
   List<_TipoVehiculo> _tiposUnicos() {
     final seen = <String>{};
     final result = <_TipoVehiculo>[];
@@ -140,8 +176,9 @@ class _RadarBuscandoState extends State<RadarBuscando>
                     },
                   ),
 
-                // Íconos de vehículo posicionados en el anillo
-                if (count > 0)
+                // Íconos de tipos de vehículo (solo si no conocemos la
+                // posición del más cercano, para no confundir direcciones)
+                if (count > 0 && widget.masCercano == null)
                   ...tipos.asMap().entries.map((e) {
                     final i = e.key;
                     final tipo = e.value;
@@ -158,6 +195,27 @@ class _RadarBuscandoState extends State<RadarBuscando>
                       left: dx,
                       top: dy,
                       child: _VehicleIconBadge(tipo: tipo),
+                    );
+                  }),
+
+                // Taxi más cercano en su dirección real, resaltado
+                if (widget.masCercano != null)
+                  Builder(builder: (_) {
+                    final m = widget.masCercano!;
+                    // 0° = arriba; en pantalla el ángulo 0 de cos/sin es a la
+                    // derecha, por eso se resta π/2.
+                    final angle = m.rumboGrados * math.pi / 180 - math.pi / 2;
+                    const size = _nearestBadgeSize;
+                    final dx = _center + _iconRadius * math.cos(angle) - size / 2;
+                    final dy = _center + _iconRadius * math.sin(angle) - size / 2;
+                    return Positioned(
+                      left: dx,
+                      top: dy,
+                      child: _VehicleIconBadge(
+                        tipo: _tipoDe(m.servicio),
+                        size: size,
+                        resaltado: true,
+                      ),
                     );
                   }),
 
@@ -204,8 +262,11 @@ class _RadarBuscandoState extends State<RadarBuscando>
                   const Icon(Icons.local_taxi, color: _colorBase, size: 16),
                   const SizedBox(width: 6),
                   Text(
-                    '${widget.conductoresCercanos} conductor'
-                    '${widget.conductoresCercanos > 1 ? "es" : ""} cerca',
+                    widget.masCercano != null
+                        ? 'Más cercano a ${widget.masCercano!.distanciaTexto}'
+                            '${widget.conductoresCercanos > 1 ? ' · ${widget.conductoresCercanos} cerca' : ''}'
+                        : '${widget.conductoresCercanos} conductor'
+                            '${widget.conductoresCercanos > 1 ? "es" : ""} cerca',
                     style: const TextStyle(
                       color: _colorBase,
                       fontWeight: FontWeight.w700,
@@ -222,19 +283,24 @@ class _RadarBuscandoState extends State<RadarBuscando>
 }
 
 class _VehicleIconBadge extends StatelessWidget {
-  const _VehicleIconBadge({required this.tipo});
+  const _VehicleIconBadge({
+    required this.tipo,
+    this.size = 38,
+    this.resaltado = false,
+  });
   final _TipoVehiculo tipo;
-
-  static const double _size = 38;
+  final double size;
+  final bool resaltado;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: _size,
-      height: _size,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
+        border: resaltado ? Border.all(color: tipo.color, width: 3) : null,
         boxShadow: [
           BoxShadow(
             color: tipo.color.withValues(alpha: 0.35),
@@ -249,7 +315,7 @@ class _VehicleIconBadge extends StatelessWidget {
           ),
         ],
       ),
-      child: Icon(tipo.icono, color: tipo.color, size: _size * 0.55),
+      child: Icon(tipo.icono, color: tipo.color, size: size * 0.55),
     );
   }
 }

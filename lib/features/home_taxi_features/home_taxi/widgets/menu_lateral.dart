@@ -10,6 +10,7 @@ import 'package:buses2/shared/services/login_google/login_google_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:buses2/features/home/services/passenger_offers_listener_service.dart';
 import '../services/driver_offer_accepted_listener_service.dart';
+import '../services/taxista_presence_service.dart';
 import 'package:buses2/shared/theme/app_colors.dart';
 import 'package:buses2/shared/widgets/botones/logout_button.dart';
 import 'package:buses2/shared/widgets/botones/quick_mode_button.dart';
@@ -285,6 +286,10 @@ class _TaxiDrawerState extends State<TaxiDrawer> {
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               }
+              // Deja de aparecer en el mapa de pasajeros ANTES de cerrar
+              // sesión (después ya no tendría permiso para borrar su nodo).
+              await TaxistaPresenceService.instance.stopPublishing();
+
               // Cierra sesión (Google + Firebase)
               await auth.signOut();
 

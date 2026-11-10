@@ -84,6 +84,10 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
   StreamSubscription<List<TaxistaOnline>>? _cercanosRtdbSub;
   final Map<String, TaxistaMarkerData> _cercanosMarkers = {};
 
+  // Centro de búsqueda (punto del pasajero) para calcular el taxi más cercano.
+  double? _centroLat;
+  double? _centroLng;
+
   @override
   void initState() {
     super.initState();
@@ -468,8 +472,11 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
       }
     }
 
+    _centroLat = lat;
+    _centroLng = lng;
+
     _cercanosRtdbSub = TaxistasCercanosService.instance
-        .streamCercanos(centerLat: lat, centerLng: lng, radiusKm: 5.0)
+        .streamCercanos(centerLat: lat, centerLng: lng)
         .listen((lista) async {
           _cercanosMarkers.clear();
           for (final t in lista) {
@@ -486,8 +493,37 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
         });
   }
 
+  /// Taxista más cercano al pasajero entre los cercanos generales y los que
+  /// hicieron oferta, o null si no hay ninguno.
+  RadarTaxiCercano? _calcularMasCercano(
+    Iterable<TaxistaMarkerData> taxistas,
+  ) {
+    final cLat = _centroLat;
+    final cLng = _centroLng;
+    if (cLat == null || cLng == null) return null;
+
+    RadarTaxiCercano? mejor;
+    for (final t in taxistas) {
+      final d = TaxistasCercanosService.haversineKm(cLat, cLng, t.lat, t.lng);
+      if (mejor == null || d < mejor.distanciaKm) {
+        mejor = RadarTaxiCercano(
+          distanciaKm: d,
+          rumboGrados:
+              TaxistasCercanosService.rumboGrados(cLat, cLng, t.lat, t.lng),
+          servicio: t.servicio,
+        );
+      }
+    }
+    return mejor;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final taxistasVisibles = {
+      ..._cercanosMarkers,
+      ..._markersByUid,
+    }.values;
+
     return WillPopScope(
       onWillPop: _handleBack,
       child: Scaffold(
@@ -539,17 +575,12 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
               Align(
                 alignment: const Alignment(0, -0.35),
                 child: RadarBuscando(
-                  conductoresCercanos: {
-                    ..._cercanosMarkers,
-                    ..._markersByUid,
-                  }.length,
-                  serviciosCercanos: {
-                    ..._cercanosMarkers,
-                    ..._markersByUid,
-                  }.values
+                  conductoresCercanos: taxistasVisibles.length,
+                  serviciosCercanos: taxistasVisibles
                       .map((m) => m.servicio ?? '')
                       .where((s) => s.isNotEmpty)
                       .toList(),
+                  masCercano: _calcularMasCercano(taxistasVisibles),
                 ),
               ),
 

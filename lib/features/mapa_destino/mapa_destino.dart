@@ -416,10 +416,9 @@ class _MapaDestinoState extends State<MapaDestino> {
         .streamCercanos(
           centerLat: lat,
           centerLng: lng,
-          radiusKm: 5.0,
         )
         .listen((lista) async {
-          debugPrint('🟢 taxistas: recibidos ${lista.length} en radio 5km');
+          debugPrint('🟢 taxistas: recibidos ${lista.length} cercanos');
           if (_mapCtrl == null) return;
           final markers = lista
               .map((t) => TaxistaMarkerData(

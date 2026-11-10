@@ -8,6 +8,9 @@
 //
 // Eficiencia:
 //   - Publica cada 8s pero SOLO si el taxista se movió >= 15m
+//   - Heartbeat: aunque esté quieto, republica cada 60s (con la última
+//     ubicación si el GPS falla) para que el pasajero sepa que sigue activo.
+//     Los pasajeros descartan ubicaciones más viejas que unos minutos.
 //   - Usa onDisconnect() para eliminar automáticamente el nodo si la app
 //     se cierra/pierde conexión (sin escritura cliente extra)
 //   - setOcupado()/stop() borra inmediatamente el nodo
@@ -25,10 +28,12 @@ class TaxistaPresenceService {
 
   static const int _tickSeconds = 8;
   static const double _minMeters = 15;
+  static const Duration _heartbeat = Duration(seconds: 60);
 
   Timer? _ticker;
   DatabaseReference? _ref;
   geo.Position? _lastUploaded;
+  DateTime? _lastUploadedAt;
 
   String? _servicio;
   String? _nombre;
@@ -89,11 +94,16 @@ class TaxistaPresenceService {
           desiredAccuracy: geo.LocationAccuracy.high,
         );
         // Si el último publish falló (_lastUploaded == null) siempre reintentamos.
-        if (_shouldPublish(pos)) {
+        if (_shouldPublish(pos) || _heartbeatVencido()) {
           await _publishOnce(pos);
         }
       } catch (e) {
         debugPrint('🟥 presence ticker error (¿GPS sin permiso?): $e');
+        // Sin GPS: mantenemos vivo el nodo con la última ubicación conocida.
+        final last = _lastUploaded;
+        if (last != null && _heartbeatVencido()) {
+          await _publishOnce(last);
+        }
       }
     });
   }
@@ -104,6 +114,7 @@ class TaxistaPresenceService {
     _ticker?.cancel();
     _ticker = null;
     _lastUploaded = null;
+    _lastUploadedAt = null;
 
     final ref = _ref;
     _ref = null;
@@ -134,9 +145,15 @@ class TaxistaPresenceService {
       // Solo marcamos la posición como publicada si el write fue exitoso.
       // Así, si las reglas RTDB bloqueaban la escritura, el próximo tick reintenta.
       _lastUploaded = pos;
+      _lastUploadedAt = DateTime.now();
     } catch (e) {
       debugPrint('🟥 presence publish FALLÓ (¿reglas RTDB?): $e');
     }
+  }
+
+  bool _heartbeatVencido() {
+    final at = _lastUploadedAt;
+    return at == null || DateTime.now().difference(at) >= _heartbeat;
   }
 
   bool _shouldPublish(geo.Position p) {
