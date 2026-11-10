@@ -93,7 +93,7 @@ class AppBar1 extends StatelessWidget implements PreferredSizeWidget {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Row(
               children: [
                 // Botón izquierdo
