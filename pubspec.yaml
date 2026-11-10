@@ -83,6 +83,7 @@ flutter:
 
   assets:                           # recursos que viajan en el APK/IPA
     - assets/images/carrasco_tropical_splash.png
+    - assets/images/banner_respaldo.jpg
     - assets/images/logomujerealvolante.jpg
     - assets/images/icono_oficial_simple.png
     - assets/icon/icono_oficial_simple.png

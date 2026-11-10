@@ -84,11 +84,34 @@ class _BannerPublicidadState extends State<BannerPublicidad> {
     super.dispose();
   }
 
+  /// Banner local que se muestra si una imagen remota falla (p. ej. Storage
+  /// devuelve 402/403/404), si el stream da error o si no hay banners activos.
+  static const String bannerRespaldo = 'assets/images/banner_respaldo.jpg';
+
+  static Widget _respaldo() =>
+      Image.asset(bannerRespaldo, fit: BoxFit.cover, width: double.infinity);
+
   Widget _buildImagen(String ruta) {
     final esUrl = ruta.startsWith('http');
     return esUrl
-        ? Image.network(ruta, fit: BoxFit.cover)
-        : Image.asset(ruta, fit: BoxFit.cover);
+        ? Image.network(
+            ruta,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            loadingBuilder: (_, child, progress) => progress == null
+                ? child
+                : const Center(child: CircularProgressIndicator()),
+            errorBuilder: (_, error, __) {
+              debugPrint('🟥 banner remoto falló ($ruta): $error');
+              return _respaldo();
+            },
+          )
+        : Image.asset(
+            ruta,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            errorBuilder: (_, __, ___) => _respaldo(),
+          );
   }
 
   Widget _buildCarousel(List<String> imagenes, {PageController? controller}) {
@@ -170,24 +193,16 @@ class _BannerPublicidadState extends State<BannerPublicidad> {
                 }
 
                 if (snapshot.hasError) {
-                  print('Error en banner stream: ${snapshot.error}');
-                  return Center(
-                    child: Text(
-                      'Error al cargar banners: ${snapshot.error}',
-                      style: const TextStyle(fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
+                  debugPrint('🟥 Error en banner stream: ${snapshot.error}');
+                  return _respaldo();
                 }
 
-                final banners = snapshot.data ?? [];
-                if (banners.isEmpty) {
-                  return const Center(
-                    child: Text('No hay banners disponibles'),
-                  );
-                }
+                final imagenes = (snapshot.data ?? [])
+                    .map((b) => b.imageUrl.trim())
+                    .where((u) => u.isNotEmpty)
+                    .toList();
+                if (imagenes.isEmpty) return _respaldo();
 
-                final imagenes = banners.map((b) => b.imageUrl).toList();
                 return _buildCarousel(imagenes);
               },
             )
