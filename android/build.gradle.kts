@@ -1,6 +1,5 @@
 allprojects {
     repositories {
-        maven { url = uri("C:/offline-repo") }
         mavenLocal()
         google()
         mavenCentral()
