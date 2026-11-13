@@ -41,6 +41,10 @@ class _BannerPublicidadState extends State<BannerPublicidad> {
   /// pubspec.yaml y agrégalo a esta lista. Tamaño ideal 1200x800 (3:2).
   static const List<String> bannersLocales = [
     'assets/images/banner_respaldo.jpg',
+    'assets/images/banner_2_rapido.jpg',
+    'assets/images/banner_3_seguridad.jpg',
+    'assets/images/banner_4_precio.jpg',
+    'assets/images/banner_5_conductor.jpg',
   ];
 
   /// URLs que ya fallaron en esta sesión: se omiten para no mostrar el
