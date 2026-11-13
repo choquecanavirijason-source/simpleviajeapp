@@ -35,45 +35,31 @@ class BannerPublicidad extends StatefulWidget {
 }
 
 class _BannerPublicidadState extends State<BannerPublicidad> {
+  /// Banners locales: se muestran si no hay banners remotos que funcionen
+  /// (Storage devuelve 402/403/404, el stream falla o no hay activos).
+  /// Para agregar más: copia la imagen a assets/images/, decláralo en
+  /// pubspec.yaml y agrégalo a esta lista. Tamaño ideal 1200x800 (3:2).
+  static const List<String> bannersLocales = [
+    'assets/images/banner_respaldo.jpg',
+  ];
+
+  /// URLs que ya fallaron en esta sesión: se omiten para no mostrar el
+  /// parpadeo en blanco cada vez que el carrusel vuelve a ellas.
+  static final Set<String> _urlsFallidas = {};
+
+  static const int _vueltas = 1000; // páginas "infinitas"
+
   PageController? _pageController;
+  int _cantidadActual = 0;
   int _paginaActual = 0;
   Timer? _timer;
 
   @override
-  void initState() {
-    super.initState();
-    // Si tenemos imagenes hardcoded, inicializamos el controller
-    if (widget.imagenes != null) {
-      final imagenesLength = widget.imagenes!.length;
-      final inicio = imagenesLength * 1000;
-      _pageController = PageController(initialPage: inicio);
-      _paginaActual = inicio % imagenesLength;
-      _configurarAutoPlay(imagenesLength);
-    }
-  }
-
-  @override
   void didUpdateWidget(covariant BannerPublicidad oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si cambia la bandera autoPlay reiniciamos el temporizador.
     if (oldWidget.autoPlay != widget.autoPlay ||
         oldWidget.intervalo != widget.intervalo) {
-      if (widget.imagenes != null) {
-        _configurarAutoPlay(widget.imagenes!.length);
-      }
-    }
-  }
-
-  void _configurarAutoPlay(int imagenesLength) {
-    _timer?.cancel();
-    if (widget.autoPlay && imagenesLength > 0) {
-      _timer = Timer.periodic(widget.intervalo, (_) {
-        if (!mounted || _pageController == null) return;
-        _pageController!.nextPage(
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOut,
-        );
-      });
+      _configurarAutoPlay(_cantidadActual);
     }
   }
 
@@ -84,99 +70,113 @@ class _BannerPublicidadState extends State<BannerPublicidad> {
     super.dispose();
   }
 
-  /// Banner local que se muestra si una imagen remota falla (p. ej. Storage
-  /// devuelve 402/403/404), si el stream da error o si no hay banners activos.
-  static const String bannerRespaldo = 'assets/images/banner_respaldo.jpg';
-
-  static Widget _respaldo() =>
-      Image.asset(bannerRespaldo, fit: BoxFit.cover, width: double.infinity);
-
-  Widget _buildImagen(String ruta) {
-    final esUrl = ruta.startsWith('http');
-    return esUrl
-        ? Image.network(
-            ruta,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            loadingBuilder: (_, child, progress) => progress == null
-                ? child
-                : const Center(child: CircularProgressIndicator()),
-            errorBuilder: (_, error, __) {
-              debugPrint('🟥 banner remoto falló ($ruta): $error');
-              return _respaldo();
-            },
-          )
-        : Image.asset(
-            ruta,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            errorBuilder: (_, __, ___) => _respaldo(),
-          );
+  /// Crea el controller solo cuando cambia la cantidad de imágenes, para que
+  /// las reconstrucciones del stream no reinicien el carrusel.
+  PageController _controllerPara(int cantidad) {
+    if (_pageController != null && cantidad == _cantidadActual) {
+      return _pageController!;
+    }
+    _pageController?.dispose();
+    _cantidadActual = cantidad;
+    _paginaActual = 0;
+    _pageController = PageController(initialPage: cantidad * _vueltas);
+    _configurarAutoPlay(cantidad);
+    return _pageController!;
   }
 
-  Widget _buildCarousel(List<String> imagenes, {PageController? controller}) {
-    // Si no se provee controller, creamos uno local
-    final pageController =
-        controller ?? PageController(initialPage: imagenes.length * 1000);
-    final shouldDisposeController = controller == null;
+  void _configurarAutoPlay(int cantidad) {
+    _timer?.cancel();
+    if (!widget.autoPlay || cantidad < 2) return;
+    _timer = Timer.periodic(widget.intervalo, (_) {
+      final c = _pageController;
+      if (!mounted || c == null || !c.hasClients) return;
+      c.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
-    return StatefulBuilder(
-      builder: (context, setLocalState) {
-        // Configurar autoplay local si es necesario
-        if (shouldDisposeController && widget.autoPlay) {
-          _timer?.cancel();
-          _timer = Timer.periodic(widget.intervalo, (_) {
-            if (!mounted) return;
-            pageController.nextPage(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOut,
-            );
-          });
-        }
+  void _marcarFallida(String url) {
+    if (_urlsFallidas.add(url)) {
+      // Reconstruir fuera del frame actual para quitarla del carrusel.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
 
-        return Stack(
-          alignment: Alignment.topCenter,
-          children: [
-            // Carrusel infinito
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: PageView.builder(
-                controller: pageController,
-                onPageChanged: (i) {
-                  final newPage = i % imagenes.length;
-                  setLocalState(() => _paginaActual = newPage);
-                  setState(() => _paginaActual = newPage);
-                },
-                itemBuilder: (_, i) =>
-                    _buildImagen(imagenes[i % imagenes.length]),
-              ),
-            ),
+  static Widget _asset(String ruta) => Image.asset(
+        ruta,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF0D47A1)),
+      );
 
-            // Puntitos indicadores
-            Positioned(
-              top: 6,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(imagenes.length, (i) {
-                  final activo = _paginaActual == i;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: activo ? 10 : 8,
-                    height: activo ? 10 : 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: activo
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.45),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ],
-        );
+  Widget _buildImagen(String ruta) {
+    if (!ruta.startsWith('http')) return _asset(ruta);
+    return Image.network(
+      ruta,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      // Mientras carga, el banner local de fondo (no un recuadro blanco).
+      loadingBuilder: (_, child, progress) =>
+          progress == null ? child : _asset(bannersLocales.first),
+      errorBuilder: (_, error, __) {
+        debugPrint('🟥 banner remoto falló ($ruta): $error');
+        _marcarFallida(ruta);
+        return _asset(bannersLocales.first);
       },
+    );
+  }
+
+  /// Remotas que no han fallado; si no queda ninguna, las locales.
+  List<String> _imagenesAMostrar(List<String> remotas) {
+    final validas = remotas
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty && !_urlsFallidas.contains(u))
+        .toList();
+    return validas.isNotEmpty ? validas : bannersLocales;
+  }
+
+  Widget _buildCarousel(List<String> imagenes) {
+    if (imagenes.length == 1) return _buildImagen(imagenes.first);
+
+    final controller = _controllerPara(imagenes.length);
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: PageView.builder(
+            controller: controller,
+            onPageChanged: (i) =>
+                setState(() => _paginaActual = i % imagenes.length),
+            itemBuilder: (_, i) => _buildImagen(imagenes[i % imagenes.length]),
+          ),
+        ),
+        Positioned(
+          top: 6,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(imagenes.length, (i) {
+              final activo = _paginaActual == i;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: activo ? 10 : 8,
+                height: activo ? 10 : 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: activo
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.45),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
     );
   }
 
@@ -188,25 +188,16 @@ class _BannerPublicidadState extends State<BannerPublicidad> {
           ? StreamBuilder<List<BannerModel>>(
               stream: widget.streamBanners,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
                 if (snapshot.hasError) {
                   debugPrint('🟥 Error en banner stream: ${snapshot.error}');
-                  return _respaldo();
                 }
-
-                final imagenes = (snapshot.data ?? [])
-                    .map((b) => b.imageUrl.trim())
-                    .where((u) => u.isNotEmpty)
+                final remotas = (snapshot.data ?? const <BannerModel>[])
+                    .map((b) => b.imageUrl)
                     .toList();
-                if (imagenes.isEmpty) return _respaldo();
-
-                return _buildCarousel(imagenes);
+                return _buildCarousel(_imagenesAMostrar(remotas));
               },
             )
-          : _buildCarousel(widget.imagenes!, controller: _pageController),
+          : _buildCarousel(_imagenesAMostrar(widget.imagenes!)),
     );
   }
 }
