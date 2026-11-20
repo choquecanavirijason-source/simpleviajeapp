@@ -30,6 +30,12 @@ class MapboxService implements MapService {
   // para evitar llamadas nativas con managerId stale.
   bool _annotationsReady = false;
 
+  /// Última lista de taxistas recibida. Si llega antes de que el mapa esté
+  /// listo (o el estilo se recarga y borra los marcadores) se repinta en
+  /// cuanto _annotationsReady vuelve a true. Antes se descartaba y, como un
+  /// taxi quieto no reemite, nunca aparecía en el mapa.
+  List<TaxistaMarkerData>? _ultimosTaxistas;
+
   // Control de rutas para evitar parpadeo
   bool _routeLayerExists = false;
   bool _labelLayerExists = false;
@@ -69,6 +75,7 @@ class MapboxService implements MapService {
 
   @override
   Future<void> sincronizarTaxistas(List<TaxistaMarkerData> taxistas) async {
+    _ultimosTaxistas = taxistas;
     if (_map == null || !_annotationsReady) return;
     _taxistasMgr ??= TaxistasMarkersManager(_map!);
     await _taxistasMgr!.sincronizar(taxistas);
@@ -150,6 +157,8 @@ class MapboxService implements MapService {
         _puntoFijoMgr = null;
         Future.delayed(const Duration(milliseconds: 500), () {
           _annotationsReady = true;
+          final pendientes = _ultimosTaxistas;
+          if (pendientes != null) sincronizarTaxistas(pendientes);
         });
       },
 

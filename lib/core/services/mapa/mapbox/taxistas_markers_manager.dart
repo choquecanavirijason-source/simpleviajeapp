@@ -33,19 +33,22 @@ class TaxistasMarkersManager {
 
   final MapboxMap _map;
   PointAnnotationManager? _manager;
-  bool _iconsRegistered = false;
   bool _creatingManager = false;
   bool _disposed = false;
 
   /// uid → PointAnnotation activa
   final Map<String, PointAnnotation> _byUid = {};
 
-  // Claves de tipo de servicio registradas en el estilo
-  static const _tiposServicio = ['taxi', 'moto', 'confort', 'otro'];
-  static const _iconSize = 48; // px del ícono generado
-  static const _iconScale = 2.0; // pixel ratio → 48/2 = 24dp en pantalla
+  /// PNG por tipo de servicio (se generan una vez).
+  static final Map<String, Uint8List> _pngPorTipo = {};
 
-  static String _iconId(String key) => 'sv_taxista_$key';
+  static Future<Uint8List> _pngDe(String key) async =>
+      _pngPorTipo[key] ??= await _generarIconoRgba(
+        _servicioParaKey(key),
+        formato: ui.ImageByteFormat.png,
+      );
+
+  static const _iconSize = 48; // px del ícono generado
 
   // ─────────────────────────────────────────────────────────────────────────
   // Inicialización
@@ -66,61 +69,86 @@ class TaxistasMarkersManager {
           await Future.delayed(Duration(milliseconds: 150 * attempt));
         }
       }
-      if (_manager != null && !_iconsRegistered) {
-        await _registrarIconosEstilo();
-      }
+      // Ya no se registran imágenes en el estilo: addStyleImage falla en
+      // algunos dispositivos ("Unable to establish connection on channel
+      // ...StyleManager.addStyleImage") y el marcador quedaba invisible.
+      // Ahora cada marcador lleva su PNG en PointAnnotationOptions.image.
     } finally {
       _creatingManager = false;
     }
-  }
-
-  /// Genera un ícono RGBA para cada tipo de servicio y lo registra en el
-  /// estilo de Mapbox. Debe llamarse una vez después de crear el manager.
-  Future<void> _registrarIconosEstilo() async {
-    for (final key in _tiposServicio) {
-      try {
-        final rgba = await _generarIconoRgba(_servicioParaKey(key));
-        await _map.style.addStyleImage(
-          _iconId(key),
-          _iconScale,
-          MbxImage(width: _iconSize, height: _iconSize, data: rgba),
-          false, // sdf
-          [],
-          [],
-          null,
-        );
-        debugPrint('🎨 ícono registrado: ${_iconId(key)}');
-      } catch (e) {
-        debugPrint('🟥 error registrando ícono "$key": $e');
-      }
-    }
-    _iconsRegistered = true;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // API pública
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Serialización: si llega una lista mientras otra se está aplicando, se
+  // guarda la ÚLTIMA y se aplica al terminar (antes se descartaba en
+  // silencio si el manager aún se estaba creando, y el taxi no aparecía).
+  bool _sincronizando = false;
+  List<TaxistaMarkerData>? _pendiente;
+
   Future<void> sincronizar(List<TaxistaMarkerData> taxistas) async {
     if (_disposed) return;
+    if (_sincronizando) {
+      _pendiente = taxistas;
+      return;
+    }
+    _sincronizando = true;
+    try {
+      var lista = taxistas;
+      var reintentos = 0;
+      while (true) {
+        final ok = await _sincronizarUnaVez(lista);
+        if (!ok && reintentos < 3 && !_disposed) {
+          reintentos++;
+          await Future.delayed(Duration(milliseconds: 300 * reintentos));
+          continue; // reintenta la misma lista con un manager nuevo
+        }
+        reintentos = 0;
+        final siguiente = _pendiente;
+        if (siguiente == null || _disposed) break;
+        _pendiente = null;
+        lista = siguiente;
+      }
+    } finally {
+      _sincronizando = false;
+    }
+  }
+
+  /// Devuelve false si el manager quedó inválido y hay que reintentar.
+  Future<bool> _sincronizarUnaVez(List<TaxistaMarkerData> taxistas) async {
+    if (_disposed) return true;
     await _ensureManager();
-    if (_manager == null || _disposed) return;
+    if (_disposed) return true;
+    if (_manager == null) return false;
 
     final mgr = _manager!;
     final nuevos = {for (final t in taxistas) t.uid: t};
 
-    // 1) Quitar del tracking los que ya no están
-    //    No llamamos mgr.delete() — puede crashear con managerId stale
-    //    si el estilo recargó entre el create y este delete.
+    // 1) Borrar del mapa los que ya no están (antes solo se quitaban del
+    //    tracking y su ícono quedaba "fantasma" en el mapa).
     final toRemove =
         _byUid.keys.where((uid) => !nuevos.containsKey(uid)).toList();
     for (final uid in toRemove) {
-      _byUid.remove(uid);
+      final p = _byUid.remove(uid);
+      if (p == null || _disposed) continue;
+      try {
+        await mgr.delete(p);
+      } catch (_) {
+        // Manager stale (el estilo recargó): reiniciar; el próximo sync
+        // creará un manager nuevo y repintará todo.
+        if (!_disposed) {
+          _manager = null;
+          _byUid.clear();
+        }
+        return false;
+      }
     }
 
     // 2) Crear o mover (nunca update — lanza Throwable nativo no capturable)
     for (final entry in nuevos.entries) {
-      if (_disposed) return;
+      if (_disposed) return true;
       final uid = entry.key;
       final t = entry.value;
       final existing = _byUid.remove(uid); // quita antes de cualquier await
@@ -135,21 +163,24 @@ class TaxistasMarkersManager {
           if (!_disposed) {
             _manager = null;
             _byUid.clear();
-            _iconsRegistered = false;
           }
-          return;
+          return false;
         }
       }
 
-      if (_disposed) return;
+      if (_disposed) return true;
 
       final iconKey = _claveServicio(t.servicio);
       try {
+        final png = await _pngDe(iconKey);
+        if (_disposed) return true;
         final created = await mgr.create(
           PointAnnotationOptions(
             geometry: Point(coordinates: Position(t.lng, t.lat)),
-            iconImage: _iconId(iconKey),
-            iconSize: 1.0,
+            image: png,
+            // El PNG es de 48 px; en pantallas de alta densidad se veía
+            // diminuto, así que se escala para que mida ~36 dp.
+            iconSize: 2.0,
             iconAnchor: IconAnchor.CENTER,
           ),
         );
@@ -159,11 +190,11 @@ class TaxistasMarkersManager {
         if (!_disposed) {
           _manager = null;
           _byUid.clear();
-          _iconsRegistered = false;
         }
-        return;
+        return false;
       }
     }
+    return true;
   }
 
   Future<void> limpiar() async {
@@ -184,7 +215,6 @@ class TaxistasMarkersManager {
     _disposed = true;
     _byUid.clear();
     _manager = null;
-    _iconsRegistered = false;
     _creatingManager = false;
   }
 
@@ -196,7 +226,10 @@ class TaxistasMarkersManager {
   ///
   /// Dibuja un badge circular con el GLIFO del vehículo según el servicio
   /// (auto/moto/confort) en lugar de un texto ("TAXI", "MOTO", …).
-  static Future<Uint8List> _generarIconoRgba(String? servicio) async {
+  static Future<Uint8List> _generarIconoRgba(
+    String? servicio, {
+    ui.ImageByteFormat formato = ui.ImageByteFormat.rawRgba,
+  }) async {
     const double sz = 48.0;
     final color = _colorPorServicio(servicio);
     final icon = _glyphPorServicio(servicio);
@@ -252,7 +285,7 @@ class TaxistasMarkersManager {
     final picture = recorder.endRecording();
     final image = await picture.toImage(_iconSize, _iconSize);
     // rawRgba es el formato que acepta MbxImage / addStyleImage
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final byteData = await image.toByteData(format: formato);
     image.dispose();
     return byteData!.buffer.asUint8List();
   }
