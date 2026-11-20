@@ -18,6 +18,14 @@ class RadarTaxiCercano {
     this.servicio,
   });
 
+  /// Por debajo de esta distancia el error del GPS (unos metros en cada
+  /// teléfono) hace que la dirección "baile" y no coincida con el mapa.
+  static const double distanciaMinimaDireccionKm = 0.05;
+
+  /// Solo se dibuja la flecha/ícono de dirección si el taxi está lo bastante
+  /// lejos como para que el rumbo sea confiable.
+  bool get mostrarDireccion => distanciaKm >= distanciaMinimaDireccionKm;
+
   /// Texto corto de distancia: "350 m" o "1.2 km".
   String get distanciaTexto => distanciaKm < 1
       ? '${(distanciaKm * 1000).round()} m'
@@ -248,8 +256,10 @@ class _RadarBuscandoState extends State<RadarBuscando>
                     );
                   }),
 
-                // Taxi más cercano en su dirección real, resaltado
-                if (widget.masCercano != null)
+                // Taxi más cercano en su dirección real, resaltado.
+                // A menos de 50 m no se dibuja: el error del GPS haría que
+                // apunte a un lado distinto del auto real en el mapa.
+                if (widget.masCercano?.mostrarDireccion ?? false)
                   Builder(
                     builder: (_) {
                       final m = widget.masCercano!;

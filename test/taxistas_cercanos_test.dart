@@ -126,6 +126,17 @@ void main() {
     });
   });
 
+  group('RadarTaxiCercano.mostrarDireccion', () {
+    test('oculta la dirección a menos de 50 m, la muestra desde 50 m', () {
+      bool dir(double km) =>
+          RadarTaxiCercano(distanciaKm: km, rumboGrados: 0).mostrarDireccion;
+      expect(dir(0.005), isFalse); // 5 m: celulares juntos
+      expect(dir(0.049), isFalse);
+      expect(dir(0.05), isTrue);
+      expect(dir(5.9), isTrue);
+    });
+  });
+
   group('RadarTaxiCercano.distanciaTexto', () {
     test('metros bajo 1 km, km con un decimal desde 1 km', () {
       String txt(double km) =>
