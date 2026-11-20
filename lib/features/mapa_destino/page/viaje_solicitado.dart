@@ -88,6 +88,9 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
   double? _centroLat;
   double? _centroLng;
 
+  // Solo encuadramos una vez, para no pelear con el usuario si mueve el mapa.
+  bool _encuadradoTaxiCercano = false;
+
   @override
   void initState() {
     super.initState();
@@ -141,6 +144,28 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
           ? (res.first['data'] as Map<String, dynamic>?)
           : null;
       if (data == null) return;
+
+      // Si la pantalla se abrió sin puntoA (p. ej. desde "Mis viajes" →
+      // Ofertas), lo tomamos del origen de la orden. Sin esto el mapa quedaba
+      // en un punto por defecto y nunca se buscaban taxis cercanos.
+      if (puntoALat == null || puntoALng == null) {
+        final origen = data['origen'];
+        if (origen is Map) {
+          final lat = (origen['lat'] as num?)?.toDouble();
+          final lng = (origen['lng'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            puntoALat = lat;
+            puntoALng = lng;
+            final ctrl = _mapCtrl;
+            if (ctrl != null) {
+              try {
+                await ctrl.moveTo(lat, lng);
+              } catch (_) {}
+              _suscribirCercanos();
+            }
+          }
+        }
+      }
 
       final servicio = data['servicio']?.toString();
       final estado = data['estado']?.toString();
@@ -478,6 +503,7 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
     _cercanosRtdbSub = TaxistasCercanosService.instance
         .streamCercanos(centerLat: lat, centerLng: lng)
         .listen((lista) async {
+          if (lista.isNotEmpty) _encuadrarConTaxi(lista.first);
           _cercanosMarkers.clear();
           for (final t in lista) {
             _cercanosMarkers[t.uid] = TaxistaMarkerData(
@@ -491,6 +517,44 @@ class _ViajeSolicitadoPageState extends State<ViajeSolicitadoPage> {
         }, onError: (e) {
           debugPrint('🟥 stream cercanos viaje_solicitado: $e');
         });
+  }
+
+  /// Aleja la cámara (centrada en el pasajero) para que se vea también el
+  /// taxi más cercano: a zoom de calle un taxi a varios km quedaba fuera.
+  Future<void> _encuadrarConTaxi(TaxistaOnline t) async {
+    if (_encuadradoTaxiCercano) return;
+    final ctrl = _mapCtrl;
+    final cLat = _centroLat;
+    final cLng = _centroLng;
+    if (ctrl == null || cLat == null || cLng == null) return;
+    _encuadradoTaxiCercano = true;
+
+    // Centro = pasajero (así coincide con el radar, que está fijo en
+    // pantalla); el zoom se elige para que el taxi quepa en la vista
+    // (cada nivel menos duplica la distancia visible).
+    final d = t.distanciaKm;
+    // Solo la mitad superior del mapa queda visible (abajo está el panel),
+    // por eso se aleja un nivel más de lo que cabría a pantalla completa.
+    final double zoom = d < 0.2
+        ? 15
+        : d < 0.4
+            ? 14
+            : d < 0.8
+                ? 13
+                : d < 1.6
+                    ? 12
+                    : d < 3.2
+                        ? 11
+                        : d < 6.4
+                            ? 10
+                            : d < 12.8
+                                ? 9
+                                : 8;
+    try {
+      await ctrl.moveTo(cLat, cLng, zoom: zoom);
+    } catch (e) {
+      debugPrint('🟥 encuadre taxi cercano: $e');
+    }
   }
 
   /// Taxista más cercano al pasajero entre los cercanos generales y los que

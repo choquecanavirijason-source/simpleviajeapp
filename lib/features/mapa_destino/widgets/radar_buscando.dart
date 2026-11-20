@@ -144,9 +144,58 @@ class _RadarBuscandoState extends State<RadarBuscando>
     final count = tipos.length;
 
     return IgnorePointer(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      // Stack: el badge flota ARRIBA del radar sin cambiar su tamaño, así el
+      // centro del radar sigue coincidiendo con el punto del pasajero.
+      // (Debajo lo tapaba el panel inferior de la pantalla de búsqueda.)
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
+          if (widget.conductoresCercanos > 0)
+            Positioned(
+              top: -38,
+              left: -80,
+              right: -80,
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_taxi, color: _colorBase, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.masCercano != null
+                            ? 'Más cercano a ${widget.masCercano!.distanciaTexto}'
+                                  '${widget.conductoresCercanos > 1 ? ' · ${widget.conductoresCercanos} cerca' : ''}'
+                            : '${widget.conductoresCercanos} conductor'
+                                  '${widget.conductoresCercanos > 1 ? "es" : ""} cerca',
+                        style: const TextStyle(
+                          color: _colorBase,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           SizedBox(
             width: _radarSize,
             height: _radarSize,
@@ -183,13 +232,14 @@ class _RadarBuscandoState extends State<RadarBuscando>
                     final i = e.key;
                     final tipo = e.value;
                     // Ángulo: empieza arriba (−π/2) y distribuye en sentido horario
-                    final angle =
-                        -math.pi / 2 + i * 2 * math.pi / count;
+                    final angle = -math.pi / 2 + i * 2 * math.pi / count;
                     final dx =
-                        _center + _iconRadius * math.cos(angle) -
+                        _center +
+                        _iconRadius * math.cos(angle) -
                         _iconBadgeSize / 2;
                     final dy =
-                        _center + _iconRadius * math.sin(angle) -
+                        _center +
+                        _iconRadius * math.sin(angle) -
                         _iconBadgeSize / 2;
                     return Positioned(
                       left: dx,
@@ -200,24 +250,28 @@ class _RadarBuscandoState extends State<RadarBuscando>
 
                 // Taxi más cercano en su dirección real, resaltado
                 if (widget.masCercano != null)
-                  Builder(builder: (_) {
-                    final m = widget.masCercano!;
-                    // 0° = arriba; en pantalla el ángulo 0 de cos/sin es a la
-                    // derecha, por eso se resta π/2.
-                    final angle = m.rumboGrados * math.pi / 180 - math.pi / 2;
-                    const size = _nearestBadgeSize;
-                    final dx = _center + _iconRadius * math.cos(angle) - size / 2;
-                    final dy = _center + _iconRadius * math.sin(angle) - size / 2;
-                    return Positioned(
-                      left: dx,
-                      top: dy,
-                      child: _VehicleIconBadge(
-                        tipo: _tipoDe(m.servicio),
-                        size: size,
-                        resaltado: true,
-                      ),
-                    );
-                  }),
+                  Builder(
+                    builder: (_) {
+                      final m = widget.masCercano!;
+                      // 0° = arriba; en pantalla el ángulo 0 de cos/sin es a la
+                      // derecha, por eso se resta π/2.
+                      final angle = m.rumboGrados * math.pi / 180 - math.pi / 2;
+                      const size = _nearestBadgeSize;
+                      final dx =
+                          _center + _iconRadius * math.cos(angle) - size / 2;
+                      final dy =
+                          _center + _iconRadius * math.sin(angle) - size / 2;
+                      return Positioned(
+                        left: dx,
+                        top: dy,
+                        child: _VehicleIconBadge(
+                          tipo: _tipoDe(m.servicio),
+                          size: size,
+                          resaltado: true,
+                        ),
+                      );
+                    },
+                  ),
 
                 // Punto central (ubicación del usuario)
                 Container(
@@ -239,43 +293,6 @@ class _RadarBuscandoState extends State<RadarBuscando>
               ],
             ),
           ),
-
-          // Badge de conductores debajo del radar
-          if (widget.conductoresCercanos > 0)
-            Container(
-              margin: const EdgeInsets.only(top: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.local_taxi, color: _colorBase, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.masCercano != null
-                        ? 'Más cercano a ${widget.masCercano!.distanciaTexto}'
-                            '${widget.conductoresCercanos > 1 ? ' · ${widget.conductoresCercanos} cerca' : ''}'
-                        : '${widget.conductoresCercanos} conductor'
-                            '${widget.conductoresCercanos > 1 ? "es" : ""} cerca',
-                    style: const TextStyle(
-                      color: _colorBase,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
